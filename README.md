@@ -12,7 +12,7 @@
 * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
 * GPU memory should be more than 20 Gb for training mode
 
-### Processing
+### Processing files
 
 Generate fragment ion matching features from theoretical and experimental data:
 ```
