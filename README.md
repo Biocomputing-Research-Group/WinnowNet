@@ -11,3 +11,12 @@
 * Linux operation system
 * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
 * GPU memory should be more than 20 Gb for training mode
+
+### Pre-processing
+
+Generate fragment ion matching features from theoretical and experimental data:
+```
+./Sipros_OpenMP -i1 tempidx -i2 tempcharge -i3 temppeptide -i4 theoryEncode -c SiprosConfig.cfg
+python SpectraFeatures.py experimental_ms.ms2 theoryEncode  features.out.pkl
+python Prediction.py rescore.out.txt model.pt
+```
