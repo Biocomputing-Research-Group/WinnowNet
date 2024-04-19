@@ -17,7 +17,7 @@
 Generate fragment ion matching features from theoretical and experimental data:
 ```
 ./Sipros_OpenMP -i1 tempidx -i2 tempcharge -i3 temppeptide -i4 theoryEncode -c SiprosConfig.cfg
-python SpectraFeatures.py experimental_ms.ms2 theoryEncode  features.out.pkl
+python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48
 python Prediction.py rescore.out.txt model.pt
 ```
 
