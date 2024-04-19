@@ -12,15 +12,16 @@
 * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
 * GPU memory should be more than 20 Gb for training mode
 
-### Processing files
+### Feature extraction
 
-Generate fragment ion matching features from theoretical and experimental data:
+Generate fragment ion matching features and 11 additional features from theoretical and experimental data:
 ```
-./Sipros_OpenMP -i1 tempidx -i2 tempcharge -i3 temppeptide -i4 theoryEncode -c SiprosConfig.cfg
 python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48
+```
+### PSM re-scoring
+```
 python Prediction.py rescore.out.txt model.pt
 ```
-
 ### Post-Processing
 Filtering with re-score psm candidates
 ```
