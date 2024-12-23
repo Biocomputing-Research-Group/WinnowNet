@@ -15,6 +15,13 @@ pip install -r ./requirements.txt
 * Linux operation system
 * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
 * GPU memory should be more than 20 Gb for training mode
+### Download Required Files
+Pre-trained model can be downloaded via:
+[cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531) for CNN-based WinnowNet
+[att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531) for self-attention-based WinnowNet
+Toy example was provided in the repo
+Other raw files benchmark datasets can be downloaded via:
+[Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
 
 ### Feature extraction
 
