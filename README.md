@@ -31,15 +31,15 @@ python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48
 ```
 ### WinnowNet training mode:
 The training model for CNN-WinnowNet requires two parameters which include a input file for spectrum features from last step and a specified physical address for the trained model 
-'''
+```
 python WinnowNet_CNN.py -i spectra.pkl -m cnn_pytorch.pt
-'''
+```
 ### PSM re-scoring
 ```
-python Prediction.py rescore.out.txt cnn_pytorch.pt
+python Prediction.py -o rescore.out.txt att_pytorch.pt
 ```
 ### Post-Processing
 Filtering with re-score psm candidates
 ```
-python filtering.py
+python filtering.py -i rescore.out.txt -p tsv_file -o filtered_result.txt
 ```
