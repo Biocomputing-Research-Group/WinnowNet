@@ -301,7 +301,7 @@ def test_model(model, test_data, device):
     print("Time usage:", get_time_dif(start_time))
 
 
-def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test):
+def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name):
     LR = 1e-3
     train_data = DefineDataset(X_train, yweight_train)
     val_data = DefineDataset(X_val, yweight_val)
@@ -311,14 +311,14 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
     model.cuda()
     model = nn.DataParallel(model)
     model.to(device)
-    model.load_state_dict(torch.load('./models_original/epoch21.pt', map_location=lambda storage, loc: storage))
+    #model.load_state_dict(torch.load('./models_original/epoch21.pt', map_location=lambda storage, loc: storage))
     criterion = my_loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
     #model.load_state_dict(
     #    torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
     #test_model(model, test_data, device)
     best_loss = 10000
-    for epoch in range(30, 60):
+    for epoch in range(0, 50):
         start_time = time.time()
         best_epoch_loss = 10000
         # load the training data in batch
@@ -346,14 +346,14 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
             if val_loss < best_epoch_loss:
                 # store the best result
                 best_epoch_loss = val_loss
-                torch.save(model.state_dict(), './models_original/epoch' + str(epoch) + '.pt')
+                torch.save(model.state_dict(), 'epoch' + str(epoch) + '.pt')
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                torch.save(model.state_dict(), 'cnn_pytorch.pt')
+                torch.save(model.state_dict(), model_name)
 
         model.load_state_dict(
-            torch.load('./models_original/epoch' + str(epoch) + '.pt', map_location=lambda storage, loc: storage))
+            torch.load('epoch' + str(epoch) + '.pt', map_location=lambda storage, loc: storage))
         train_acc, train_loss, train_Posprec, train_Negprec = evaluate(train_data, model, criterion, device)
         val_acc, val_loss, val_PosPrec, val_Negprec = evaluate(val_data, model, criterion, device)
         time_dif = get_time_dif(start_time)
@@ -369,7 +369,37 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
 
 
 if __name__ == "__main__":
-    features_train = glob.glob('spectra_features/train/*pkl')[:1]
+    argv=sys.argv[1:]
+    try:
+        opts, args = getopt.getopt(argv, "hi:s:o:t:")
+    except:
+        print("Error Option, using -h for help information.")
+        sys.exit(1)
+    if len(opts)==0:
+        print("\n\nUsage:\n")
+        print("-i\t Directories for spectra features\n")
+        print("-m\t Output trained model name\n")
+        print("-t\t Number of threads\n")
+        sys.exit(1)
+    start_time=time.time()
+    exp_file=""
+    tsv_file=""
+    theoretical_file=""
+    output_file=""
+    for opt, arg in opts:
+        if opt in ("-h"):
+            print("\n\nUsage:\n")
+            print("-i\t Directories for spectra features\n")
+            print("-m\t ms2 format spectrum information\n")
+            print("-t\t Number of threads\n")
+            sys.exit(1)
+        elif opt in ("-i"):
+            input_directory=arg
+        elif opt in ("-m"):
+            model_name=arg
+        elif opt in ("-t"):
+            num_cpus=arg
+    features_train = glob.glob(input_directory+'/*pkl')
     psm_train = []
     for name in features_train:
         psm_train.append(name.replace('spectra_features/', 'feature_PSMs/').replace('.pkl', '.tsv'))
@@ -391,5 +421,5 @@ if __name__ == "__main__":
     print("length of training data: " + str(len(X_train)))
     print("length of validation data: " + str(len(X_val)))
     print("length of test data: " + str(len(X_test)))
-    train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test)
+    train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name)
     print('done')

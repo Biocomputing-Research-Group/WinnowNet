@@ -1,12 +1,16 @@
 # WinnowNet
-
+Note: The algorithm is implementated and tested in Ubuntu 20.04.6 LTS GNU/Linux 5.15.0-84-generic x86_64
 ## Setup and installation
-### Dependency
-* python == 3.7
-* numpy == 1.17.2
-* scikit-learn >= 0.23.1
-* pytorch(gpu version) >= 1.19.5
-* CUDA Version 10.2
+### Create a new conda environment and activate it.
+```
+conda create --name WinnowNet python=3.7
+conda activate WinnowNet
+```
+### Install dependencies:
+
+```
+pip install -r ./requirements.txt
+```
 ### Requirement
 * Linux operation system
 * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
@@ -18,9 +22,14 @@ Generate fragment ion matching features and 11 additional features from theoreti
 ```
 python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48
 ```
+### WinnowNet training mode:
+The training model for CNN-WinnowNet requires two parameters which include a input file for spectrum features from last step and a specified physical address for the trained model 
+'''
+python WinnowNet_CNN.py -i spectra.pkl -m cnn_pytorch.pt
+'''
 ### PSM re-scoring
 ```
-python Prediction.py rescore.out.txt model.pt
+python Prediction.py rescore.out.txt cnn_pytorch.pt
 ```
 ### Post-Processing
 Filtering with re-score psm candidates
