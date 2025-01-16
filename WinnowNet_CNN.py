@@ -11,6 +11,8 @@ from sklearn import metrics
 import numpy as np
 import glob
 import pickle
+import sys
+import getopt
 
 def LabelToDict(fp):
     sample = fp.read().strip().split('\n')
@@ -363,8 +365,7 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
         print(msg.format(epoch + 1, train_loss, train_acc, train_Posprec, train_Negprec, val_loss, val_acc,
                          val_PosPrec, val_Negprec, time_dif))
 
-    model.load_state_dict(exp_train, theoretical_train
-        torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
+    model.load_state_dict(torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
     test_model(model, test_data, device)
 
 

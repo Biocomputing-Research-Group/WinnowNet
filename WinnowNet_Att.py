@@ -11,8 +11,10 @@ from sklearn import metrics
 import numpy as np
 import glob
 import pickle
+from SpectraFeatures import expToDict, theoryToDict
 
-
+pairmaxlength=500
+threshold=0.9
 def LabelToDict(fp):
     sample = fp.read().strip().split('\n')
     label_dic = dict()
@@ -52,31 +54,38 @@ def pad_control_3d(data):
     return data
 
 
-def readData(features_train, psm_train):
+def readData(psms,exps,theoreticals):
     L = []
     Yweight = []
 
-    for i in range(len(features_train)):
-        with open(features_train[i],'rb') as f:
-            D_features=pickle.load(f)
-        with open(psm_train[i]) as f:
-            D_Label = LabelToDict(f)
+    for i in range(len(psms)):
+        with open(psms[i]) as f:
+            D_Label=LabelToDict(f)
+        with open(exps[i],'r') as f:
+            D_exp=expToDict(f)
+        with open(theoreticals[i],'r') as f:
+            D_theory=theoryToDict(f)
 
         for j in D_Label.keys():
             if D_Label[j][1]==1:
                 if D_Label[j][0]>0.9:
-                    L.append(D_features[j])
+                    scan=j.split('_')[-3]
+                    L.append(D_exp[scan][1])
+                    L.append(D_theory[j])
                     Y = D_Label[j][1]
                     weight = D_Label[j][0]
                     Yweight.append([Y, weight])
             else:
-                if D_Label[j][0]>0.1:
-                    L.append(D_features[j])
+                if D_Label[j][0]<0.25:
+                    scan=j.split('_')[-3]
+                    L.append(D_exp[scan][1])
+                    L.append(D_theory[j])
                     Y = D_Label[j][1]
                     weight = 0
                     Yweight.append([Y, weight])
 
-        del D_features
+        del D_exp
+        del D_theory
         del D_Label
 
     return L, Yweight
@@ -364,12 +373,15 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
 
 
 if __name__ == "__main__":
-    features = glob.glob('240k_spectra_features/*pkl')
-    psm = []
-    for name in features:
-        psm.append(name.replace('240k_spectra_features/', '240k_PSMs/').replace('.pkl', '.tsv'))
+    psms = glob.glob('/media/fs0199/easystore/Protein/DeepFilterV2_local/240k_PSMs_new/*tsv')
+    exps=[]
+    theoreticals=[]
+    for name in psms:
+        exps.append(name.replace('240k_PSMs_new/', '240k_ms2/').replace('.tsv', '.ms2'))
+    for name in psms:
+        theoreticals.append(name.replace('240k_PSMs_new/', '240k_theoretical/').replace('.tsv', '.txt'))
     start = time.time()
-    L, Yweight = readData(features, psm)
+    L, Yweight = readData(psms,exps,theoreticals)
     eight_easy_X_train, twenty_easy_X_train, eight_easy_yweight_train, twenty_easy_yweight_train= train_test_split(L[:5000], Yweight[:5000], test_size=0.2,random_state=10)
 
     features = glob.glob('/home/UNT/fs0199/WinnowNet_training/marine_data/spectra_features/*pkl')
@@ -379,8 +391,6 @@ if __name__ == "__main__":
     L, Yweight = readData(features, psm)
     X_train, X_test, yweight_train, yweight_test= train_test_split(L[:1215], Yweight[:1215], test_size=0.1,random_state=10)
     eight_difficult_X_train, twenty_difficult_X_train, eight_difficult_yweight_train, twenty_difficult_yweight_train= train_test_split(X_train, yweight_train, test_size=0.2,random_state=10)
-    #X_train=eight_easy_X_train+twenty_difficult_X_train
-    #yweight_train=eight_easy_yweight_train+twenty_difficult_yweight_train
     X_train=twenty_easy_X_train+eight_difficult_X_train
     yweight_train=twenty_easy_yweight_train+eight_difficult_yweight_train
     X_train, X_val, yweight_train, yweight_val = train_test_split(X_train, yweight_train, test_size=0.1,random_state=10)

@@ -40,18 +40,19 @@ The training model for self-attention-based WinnowNet requires two parameters wh
 ```
 python WinnowNet_CNN.py -i spectra.pkl -m cnn_pytorch.pt
 ```
-##WinnwoNet inference mode:
+## WinnwoNet inference mode:
 ### PSM re-scoring
 Generate input representations for PSM candidates then rescore them. Example:
 ```
 python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48 -f att 
-python Prediction.py -o rescore.out.txt att_pytorch.pt
+python Prediction.py -i spectra.pkl -o rescore.out.txt -m att_pytorch.pt # rescore.out.txt contains the predicted PSMs' scores 
 ```
-##Evaluation
+
+## Evaluation
 ### FDR control in psm/peptide levels
 Filtering with re-score psm candidates, input files include original plain file for PSM candidates and rescoring results, option "o" indicates the prefix for output files. Output files include filtering results after controlling FDR at PSM and peptide levels within 1%
 ```
-python filtering.py -i rescore.out.txt -p tsv_file -o filtered
+python filtering.py -i rescore.out.txt -p tsv_file -o filtered #filtered output files contains PSMs' information including new predicted score, spectrum ID, identified peptides and corresponding proteins.
 ```
 Assembled filtered identified peptides into proteins
 ```
