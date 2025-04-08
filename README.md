@@ -38,7 +38,7 @@ python WinnowNet_CNN.py -i spectra.pkl -m cnn_pytorch.pt
 ```
 The training model for self-attention-based WinnowNet requires two parameters which include a input file for spectrum features from last step and a specified physical address for the trained model
 ```
-python WinnowNet_att.py -i spectra.pkl -m att_pytorch.pt
+python WinnowNet_Att.py -i spectra.pkl -m att_pytorch.pt
 ```
 ## WinnwoNet inference mode:
 ### PSM re-scoring
