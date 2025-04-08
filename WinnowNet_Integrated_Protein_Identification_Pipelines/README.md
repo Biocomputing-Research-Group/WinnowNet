@@ -48,6 +48,6 @@ python win2prophet.py -i marine3_WorkDirectory/marine3.rescore.txt -w marine3_Wo
 ### Protein inference and fdr controlling by philosopher
 ```
 ./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 proteinprophet --maxppmdiff 2000000 --output combined marine3_WorkingDirectory/filelist_proteinprophet.txt
-FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 database --annotate marine3_WorkingDirectory/Marine_shuffled.fasta --prefix shuffled_
+./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 database --annotate marine3_WorkingDirectory/Marine_shuffled.fasta --prefix shuffled_
 ./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 filter --sequential --prot 0.01 --tag rev_ --pepxml marine3_WorkingDirectory --protxml marine3_WorkingDirectory/combined.prot.xml --razor
 ```
