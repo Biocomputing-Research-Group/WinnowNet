@@ -16,9 +16,9 @@ Pytorch GPU version is compatible with corresponding cuda version
 pip install -r ./requirements.txt
 ```
 * System Requirement
-  * Linux operation system
-  * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
-  * GPU memory should be more than 20 Gb for training mode
+  * **Operation system**: Linux
+  * **Inference Mode**: At least 8 GB (adjust batch size if necessary)
+  * **Training Mode**: At least 20 GB
 ### Download Required Files
 Pre-trained model can be downloaded via:
 [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531) for CNN-based WinnowNet
