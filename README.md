@@ -41,16 +41,21 @@ pip install -r ./requirements.txt
   * **Self-Attention-based WinnowNet**: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
 * A toy example is provided in this repository.
 * **Sample Input Datasets**
-Other raw files benchmark datasets can be downloaded via:
 [Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
+Other raw files benchmark datasets can be downloaded via:
+[PXD007587](https://www.ebi.ac.uk/pride/archive/projects/PXD007587)[PXD006118](https://www.ebi.ac.uk/pride/archive/projects/PXD006118)[PXD013386](https://www.ebi.ac.uk/pride/archive/projects/PXD006118)[PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217)[PXD035759](https://www.ebi.ac.uk/pride/archive/projects/PXD035759)
 
 ## Feature extraction
 
-Generate fragment ion matching features and 11 additional features from theoretical, experimental spectrum. The PSM condidates' information is from a telimited file (e.g. a tsv file output from Percolator):
+Extract fragment ion matching features along with 11 additional features derived from both theoretical and experimental spectra. The PSM (peptide-spectrum match) candidate information should be provided in a tab-delimited file (e.g., a TSV file output from Percolator).
+```bash
+python SpectraFeatures.py -i <tsv_file> -s <ms2_file> -o spectra.pkl -t 48 -f cnn
 ```
-python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48 -f cnn
-```
-This function contains two functions of feature extraction methods which are controlled by option "f", when the spectrum features are used as input for CNN-based WinnowNet, please pass "cnn" to the option "f", otherwise, please pass "att" to the option "f"
+* Replace `<tsv_file>` with the path to your PSM candidates file.
+* Replace `<ms2_file>` with the path to your experimental spectra file.
+* The `-t 48` option sets the number of threads (adjust this value as needed).
+* Use `-f cnn` when preparing input for the CNN-based architecture or -f att for the self-attention-based model.
+
 ## WinnowNet training mode:
 The training model for CNN-WinnowNet requires two parameters which include a input file for spectrum features from last step and a specified physical address for the trained model 
 ```
