@@ -3,6 +3,19 @@ Note: This algorithm was implemented and tested on Ubuntu 20.04.6 LTS (GNU/Linux
 ## Overview
 WinnowNet is designed for advanced processing of mass spectrometry data with two core methods: a CNN-based approach and a self-attention-based approach. The repository includes scripts for feature extraction, model training, prediction (inference), and evaluation. A toy example is included to help users get started.
 
+## Table of Contents
+- [Setup and Installation](#setup-and-installation)
+- [Requirements](#requirements)
+- [Downloading Required Files](#downloading-required-files)
+- [Feature Extraction](#feature-extraction)
+- [Training](#training)
+  - [CNN-based WinnowNet](#cnn-based-winnownet)
+  - [Self-Attention-based WinnowNet](#self-attention-based-winnownet)
+- [Inference](#inference)
+  - [PSM Re-scoring](#psm-rescoring)
+- [Evaluation](#evaluation)
+- [Contact and Support](#contact-and-support)
+
 ## Setup and installation
 * Create a new conda environment and activate it.
 ```
@@ -20,9 +33,9 @@ pip install -r ./requirements.txt
   * **Inference Mode**: At least 8 GB (adjust batch size if necessary)
   * **Training Mode**: At least 20 GB
 ### Download Required Files
-Pre-trained model can be downloaded via:
-[cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531) for CNN-based WinnowNet
-[att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531) for self-attention-based WinnowNet
+* Pre-trained model can be downloaded via:
+  ** **CNN-based WinnowNet**: [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
+  ** **Self-Attention-based WinnowNet**: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
 Toy example was provided in the repo
 Other raw files benchmark datasets can be downloaded via:
 [Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
