@@ -56,30 +56,43 @@ python SpectraFeatures.py -i <tsv_file> -s <ms2_file> -o spectra.pkl -t 48 -f cn
 * The `-t 48` option sets the number of threads (adjust this value as needed).
 * Use `-f cnn` when preparing input for the CNN-based architecture or -f att for the self-attention-based model.
 
-## WinnowNet training mode:
-The training model for CNN-WinnowNet requires two parameters which include a input file for spectrum features from last step and a specified physical address for the trained model 
-```
+## Training
+### CNN-based WinnowNet
+Train the CNN-based model using the extracted spectrum features:
+```bash
 python WinnowNet_CNN.py -i spectra.pkl -m cnn_pytorch.pt
 ```
-The training model for self-attention-based WinnowNet requires two parameters which include a input file for spectrum features from last step and a specified physical address for the trained model
-```
+* `-i spectra.pkl` specifies the input file containing extracted features.
+* `-m cnn_pytorch.pt` indicates the file path to save (or load) the trained CNN model.
+
+### Self-Attention-based WinnowNet
+Train the self-attention model similarly:
+```bash
 python WinnowNet_Att.py -i spectra.pkl -m att_pytorch.pt
 ```
-## WinnwoNet inference mode:
+* `-i spectra.pkl` specifies the input file containing extracted features.
+* `-m att_pytorch.pt` indicates the file path to save (or load) the trained self-attention model.
+
+## Inference
 ### PSM re-scoring
-Generate input representations for PSM candidates then rescore them. Example:
-```
+To generate feature representations for PSM candidates and perform re-scoring using the self-attention model, run:
+```bash
 python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48 -f att 
-python Prediction.py -i spectra.pkl -o rescore.out.txt -m att_pytorch.pt # rescore.out.txt contains the predicted PSMs' scores 
+python Prediction.py -i spectra.pkl -o rescore.out.txt -m att_pytorch.pt  
 ```
+* `rescore.out.txt` will contain the predicted scores for each PSM candidate.
 
 ## Evaluation
-### FDR control in psm/peptide levels
-Filtering with re-score psm candidates, input files include original plain file for PSM candidates and rescoring results, option "o" indicates the prefix for output files. Output files include filtering results after controlling FDR at PSM and peptide levels within 1%
+### FDR Control at the PSM/Peptide Levels
+Filter the re-scored PSM candidates to control the false discovery rate (FDR) at both the PSM and peptide levels (targeted at 1% FDR). You will need both the original PSM file and the re-scoring results.
+```bash
+python filtering.py -i rescore.out.txt -p tsv_file -o filtered
 ```
-python filtering.py -i rescore.out.txt -p tsv_file -o filtered #filtered output files contains PSMs' information including new predicted score, spectrum ID, identified peptides and corresponding proteins.
-```
+* The filtered output files include updated PSM information (new predicted scores, spectrum IDs, identified peptides, and corresponding proteins).
 Assembled filtered identified peptides into proteins
-```
+```bash
 python sipros_peptide_assembling.py
 ```
+
+## Contact and Support
+For further assistance, please consult the GitHub repository or reach out to the project maintainers.
