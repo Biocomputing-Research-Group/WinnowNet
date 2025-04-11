@@ -4,8 +4,8 @@ Note: This algorithm was implemented and tested on Ubuntu 20.04.6 LTS (GNU/Linux
 WinnowNet is designed for advanced processing of mass spectrometry data with two core methods: a CNN-based approach and a self-attention-based approach. The repository includes scripts for feature extraction, model training, prediction (inference), and evaluation. A toy example is included to help users get started.
 
 ## Table of Contents
-- [Setup and Installation](#setup-and-installation)
-- [Requirements](#requirements)
+- [Setup and Installation](#Setup and installation)
+- [Requirements](#Requirements)
 - [Downloading Required Files](#downloading-required-files)
 - [Feature Extraction](#feature-extraction)
 - [Training](#training)
@@ -17,26 +17,26 @@ WinnowNet is designed for advanced processing of mass spectrometry data with two
 - [Contact and Support](#contact-and-support)
 
 ## Setup and installation
-* Create a new conda environment and activate it.
+1. Create a new conda environment and activate it.
 ```
 conda create --name WinnowNet python=3.7
 conda activate WinnowNet
 ```
-* Install dependencies:
+2. Install dependencies:
 CUDA version 11.6
 Pytorch GPU version is compatible with corresponding cuda version
 ```
 pip install -r ./requirements.txt
 ```
-* System Requirement
-  * **Operation system**: Linux
+## Requirements
+* **Operation system**: Linux
   * **Inference Mode**: At least 8 GB (adjust batch size if necessary)
   * **Training Mode**: At least 20 GB
-### Download Required Files
+## Download Required Files
 * Pre-trained model can be downloaded via:
-  ** **CNN-based WinnowNet**: [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
-  ** **Self-Attention-based WinnowNet**: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
-Toy example was provided in the repo
+  ** CNN-based WinnowNet: [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
+  ** Self-Attention-based WinnowNet: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
+* A toy example is provided in this repository.
 Other raw files benchmark datasets can be downloaded via:
 [Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
 
