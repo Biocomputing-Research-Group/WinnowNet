@@ -74,7 +74,7 @@ python WinnowNet_Att.py -i spectra.pkl -m att_pytorch.pt
 * `-m att_pytorch.pt` indicates the file path to save (or load) the trained self-attention model.
 
 ## Inference
-### PSM re-scoring
+### PSM Rescoring
 To generate feature representations for PSM candidates and perform re-scoring using the self-attention model, run:
 ```bash
 python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48 -f att 
