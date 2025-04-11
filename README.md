@@ -43,7 +43,7 @@ pip install -r ./requirements.txt
 * **Sample Input Datasets**
 [Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
 Other raw files benchmark datasets can be downloaded via:
-[PXD007587](https://www.ebi.ac.uk/pride/archive/projects/PXD007587)[PXD006118](https://www.ebi.ac.uk/pride/archive/projects/PXD006118)[PXD013386](https://www.ebi.ac.uk/pride/archive/projects/PXD006118)[PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217)[PXD035759](https://www.ebi.ac.uk/pride/archive/projects/PXD035759)
+[PXD007587](https://www.ebi.ac.uk/pride/archive/projects/PXD007587),[PXD006118](https://www.ebi.ac.uk/pride/archive/projects/PXD006118),[PXD013386](https://www.ebi.ac.uk/pride/archive/projects/PXD006118)[PXD023217](https://www.ebi.ac.uk/pride/archive/projects/PXD023217),[PXD035759](https://www.ebi.ac.uk/pride/archive/projects/PXD035759)
 
 ## Feature extraction
 
