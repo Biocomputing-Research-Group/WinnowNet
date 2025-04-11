@@ -1,21 +1,24 @@
 # WinnowNet
-Note: The algorithm is implementated and tested in Ubuntu 20.04.6 LTS GNU/Linux 5.15.0-84-generic x86_64
+Note: This algorithm was implemented and tested on Ubuntu 20.04.6 LTS (GNU/Linux 5.15.0-84-generic, x86_64).
+## Overview
+WinnowNet is designed for advanced processing of mass spectrometry data with two core methods: a CNN-based approach and a self-attention-based approach. The repository includes scripts for feature extraction, model training, prediction (inference), and evaluation. A toy example is included to help users get started.
+
 ## Setup and installation
-### Create a new conda environment and activate it.
+  1. Create a new conda environment and activate it.
 ```
 conda create --name WinnowNet python=3.7
 conda activate WinnowNet
 ```
-### Install dependencies:
+  2. Install dependencies:
 CUDA version 11.6
 Pytorch GPU version is compatible with corresponding cuda version
 ```
 pip install -r ./requirements.txt
 ```
-### Requirement
-* Linux operation system
-* GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
-* GPU memory should be more than 20 Gb for training mode
+  3. System Requirement
+    * Linux operation system
+    * GPU memory should be more than 8 Gb for inference mode otherwise the batchsize should be adjusted
+    * GPU memory should be more than 20 Gb for training mode
 ### Download Required Files
 Pre-trained model can be downloaded via:
 [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531) for CNN-based WinnowNet
