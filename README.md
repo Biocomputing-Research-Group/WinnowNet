@@ -6,7 +6,7 @@ WinnowNet is designed for advanced processing of mass spectrometry data with two
 ## Table of Contents
 - [Setup and Installation](#setup-and-installation)
 - [Requirements](#Requirements)
-- [Downloading Required Files](#downloading-required-files)
+- [Downloading Required Files](#download-required-files)
 - [Feature Extraction](#feature-extraction)
 - [Training](#training)
   - [CNN-based WinnowNet](#cnn-based-winnownet)
@@ -37,10 +37,10 @@ pip install -r ./requirements.txt
 
 ## Download Required Files
 * Pre-trained model can be downloaded via:
-  ** CNN-based WinnowNet: [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
-  ** Self-Attention-based WinnowNet: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
+  * **CNN-based WinnowNet**: [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
+  * **Self-Attention-based WinnowNet**: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
 * A toy example is provided in this repository.
-* **Benchmark Datasets**
+* **Sample Input Datasets**
 Other raw files benchmark datasets can be downloaded via:
 [Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
 
