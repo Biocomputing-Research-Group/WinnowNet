@@ -1,53 +1,70 @@
-# Original command lines of pipelines and the step-step instruction to integrate WinnowNet to the pipeline
-Note: the marine2 dataset is used as an example
-## Original Sipros-Ensemble 
-### Execution of Sipros-Ensemble search engine
+# Pipeline Integration Instructions for WinnowNet
+Note: This document describes both the original command lines for the Sipros-Ensemble and FragPipe pipelines (using the marine3 dataset as an example) and the step-by-step instructions to integrate WinnowNet for rescoring.
+## 1. Sipros-Ensemble Workflow
+### A. Original Sipros-Ensemble Pipeline
+#### 1. Execute the Sipros-Ensemble Search Engine
+Run the search engine by specifying the working directory (which must contain the MS2 files) and the configuration file.
+```bash
+./Sipros_OpenMP -w marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/
 ```
-./Sipros_OpenMP -w marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/ #The working direcotory include the MS2 files
-```
-### Execution of Sipros-Ensemble's filtering algorithm and FDR controlling at PSM/Peptide/Protein levels
+#### 2. Apply Filtering and FDR Control at PSM/Peptide/Protein Levels
 ```
 ./runSiprosFiltering.sh -in marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/ 
 ```
 
-## Integrating WinnowNet with Sipros-Ensemble
-### Execution of Sipros-Ensemble search engine and data format convertion
-``` 
-./Sipros_OpenMP -w marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/ #The working direcotory include the MS2 fil
-es
-python sipros2win.py -in marine3_WorkDirectory -o marine3_WorkDirectory/marine3_spectra.pkl -t 48
+### B. Integrating WinnowNet with Sipros-Ensemble
+#### Step 1: Execute Search Engine and Convert Data Format
+Run the Sipros-Ensemble search engine and then convert the output for WinnowNet. The conversion script produces a pickle file for downstream rescoring.
+```bash
+./Sipros_OpenMP -w marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/ # Execute search engine (MS2 files required)
+python sipros2win.py -in marine3_WorkDirectory -o marine3_WorkDirectory/marine3_spectra.pkl -t 8 # Convert output to pickle format; use 8 threads
 ```
-### Execution of WinnowNet for rescoring
-```
+#### Step 2: Rescore with WinnowNet
+Rescore the converted data using the WinnowNet model.
+```bash
 python Prediction.py -i marine3_WorkDirectory/marine3_spectra.pkl -o marine3_WorkDirectory/marine3.rescore.txt -m att_pytorch.pt
 ```
-### FDR controlling at PSM/Peptide level and protein assembling
-```
+Note: The model file att_pytorch.pt is used by WinnowNet for rescoring.
+
+#### Step 3: Apply FDR Control and Assemble Proteins
+Combine the rescored output, apply a 1% FDR threshold (at the PSM/Peptide level), and assemble peptides to infer proteins.
+```bash
 python filtering_combineFDR.py -i marine3_WorkDirectory/marine3.rescore.txt -f 0.01
 python sipros_peptides_assembling.py -w marine3_WorkDirectory
 ```
-## Original FragPipe
-### Execution of FragPipe in headless mode
+Note: The first command applies FDR control using a threshold of 0.01, and the second script performs protein assembly.
+
+## 2. FragPipe Workflow
+### A. Original FragPipe Pipeline
+#### 1. Run FragPipe in Headless Mode
+Execute FragPipe using a predefined workflow and manifest file.
 ```
 fragpipe --headless --workflow marine3_WorkDirectory/fragpipe.workflow --manifest marine3_WorkDirectory/fragpipe-files.fp-manifest --workdir marine3_WorkDirectory/
 ```
-## Integrating WinnowNet with FragPipe
-### Execution of FragPipe search engine and data format convertion
-```
+### B. Integrating WinnowNet with FragPipe
+#### Step 1: Execute MSFragger via FragPipe and Convert Data Format
+Use MSFragger for the search and then convert the resulting XML output for WinnowNet processing.
+```bash
 java -jar -Dfile.encoding=UTF-8 -Xmx16G FragPipe-22.0/fragpipe/tools/MSFragger-4.1/MSFragger-4.1.jar fragger.params marine3_WorkDirectory/OSU_D7_FASP_Elite_03172014_01.raw
-python xml2win.py -in marine3_WorkDirectory/ -o marine3_WorkDirectory/marine3_spectra.pkl -t 48
+python xml2win.py -in marine3_WorkDirectory/ -o marine3_WorkDirectory/marine3_spectra.pkl -t 8
 ```
-### Execution of WinnowNet for rescoring
-```
+Note: Adjust fragger.params and the raw file name as required. The conversion script xml2win.py prepares data for WinnowNet using 8 threads.
+#### Step 2: Rescore with WinnowNet
+Apply WinnowNet rescoring to the converted data file.
+```bash
 python Prediction.py -i marine3_WorkDirectory/marine3_spectra.pkl -o marine3_WorkDirectory/marine3.rescore.txt -m att_pytorch.pt
 ```
-### Data format convertion for FragPipe's philosopher tool
-```
+#### Step 3: Convert Data for Philosopher Tool
+Convert the rescored output into a format compatible with FragPipe's Philosopher tool.
+```bash
 python win2prophet.py -i marine3_WorkDirectory/marine3.rescore.txt -w marine3_WorkDirectory/
 ```
-### Protein inference and fdr controlling by philosopher
-```
+#### Step 4: Protein Inference and FDR Control Using Philosopher
+```bash
 ./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 proteinprophet --maxppmdiff 2000000 --output combined marine3_WorkingDirectory/filelist_proteinprophet.txt
+
 ./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 database --annotate marine3_WorkingDirectory/Marine_shuffled.fasta --prefix shuffled_
+
 ./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 filter --sequential --prot 0.01 --tag rev_ --pepxml marine3_WorkingDirectory --protxml marine3_WorkingDirectory/combined.prot.xml --razor
 ```
+Note: These commands handle protein inference (`proteinprophet`), FASTA database annotation, and sequential FDR filtering (`filter`). Ensure that input file paths and parameters match your environment.
