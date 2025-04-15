@@ -1,0 +1,1 @@
+java -Xmx250000M -jar /work/08315/fs0199/ls6/Soil/MSGFPlus.jar -s /work_dir/sample.ms2 -d /work/08315/fs0199/ls6/Soil/Soil_shuffled.fasta -inst 1 -t 0.09Da -ti -1,3 -ntt 2 -e 1 -thread 100 -m 3 -minLength 7 -maxLength 60 -n 5 -addFeatures 1 -maxMissedCleavages 3 -numMods 1 -maxMissedCleavages 3 -tda 1 -decoy Rev -mod MSGFPlus_Mods1.txt -o /work_dir/sample.mzid
