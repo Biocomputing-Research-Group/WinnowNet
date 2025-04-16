@@ -2,12 +2,12 @@
 Note: This document describes both the original command lines for the Sipros-Ensemble and FragPipe pipelines (using the marine3 dataset as an example) and the step-by-step instructions to integrate WinnowNet for rescoring.
 ## 1. Sipros-Ensemble Workflow
 ### A. Original Sipros-Ensemble Pipeline
-#### 1. Execute the Sipros-Ensemble Search Engine
+#### Step 1: Execute the Sipros-Ensemble Search Engine
 Run the search engine by specifying the working directory (which must contain the MS2 files) and the configuration file.
 ```bash
 ./Sipros_OpenMP -w marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/
 ```
-#### 2. Apply Filtering and FDR Control at PSM/Peptide/Protein Levels
+#### Step 2: Apply Filtering and FDR Control at PSM/Peptide/Protein Levels
 ```
 ./runSiprosFiltering.sh -in marine3_WorkDirectory -c marine3_WorkDirectory/SiprosConfig_Marine.cfg -o marine3_WorkDirectory/ 
 ```
@@ -36,7 +36,7 @@ Note: The first command applies FDR control using a threshold of 0.01, and the s
 
 ## 2. FragPipe Workflow
 ### A. Original FragPipe Pipeline
-#### 1. Run FragPipe in Headless Mode
+#### Step 1. Run FragPipe in Headless Mode
 Execute FragPipe using a predefined workflow and manifest file.
 ```
 fragpipe --headless --workflow marine3_WorkDirectory/fragpipe.workflow --manifest marine3_WorkDirectory/fragpipe-files.fp-manifest --workdir marine3_WorkDirectory/
@@ -68,3 +68,22 @@ python win2prophet.py -i marine3_WorkDirectory/marine3.rescore.txt -w marine3_Wo
 ./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 filter --sequential --prot 0.01 --tag rev_ --pepxml marine3_WorkingDirectory --protxml marine3_WorkingDirectory/combined.prot.xml --razor
 ```
 Note: These commands handle protein inference (`proteinprophet`), FASTA database annotation, and sequential FDR filtering (`filter`). Ensure that input file paths and parameters match your environment.
+
+## 3. AlphaPept Workflow
+### A. Original AlphaPept Pipeline
+#### Step 1. Run AlphaPept in Workflow Mode
+Execute  AlphaPept using a predefined workflow and setting up parameters in the `.yaml` configuration file.
+```bash
+alphapept workflow 2025_03_12_marine3.yaml
+```
+### B. Integrating WinnowNet with AlphaPept
+#### Step 1. Execute AlphaPept Shown as Above and Covert Data Format
+```bash
+python hdf2win.py -in marine3_WorkDirectory/ -o marine3_WorkDirectory/marine3_spectra.pkl -t 8
+```
+#### Step 2. Rescore with WinnowNet
+```bash
+python Prediction.py -i marine3_WorkDirectory/marine3_spectra.pkl -o marine3_WorkDirectory/marine3.rescore.txt -m att_pytorch.pt
+```
+#### Step 3. Using score from WinnowNet and Follow the Steps to Control FDR by AlphaPept
+[**FDR Control**](https://github.com/MannLabs/alphapept/blob/master/nbs/06_score.ipynb)
