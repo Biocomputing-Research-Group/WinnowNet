@@ -50,7 +50,7 @@ Protein.Group  PG.Q.Value  q_value     protein  score  combined_fdp  n_t   n_p  
 sp|B8I601|GATA_RUMCH        0.00174821  0.00174821 B8I601   1      0.0           229  0    0.0         0        0        0   0.0
 sp|B8I6T0|PROA_RUMCH        0.00174821  0.00174821 B8I6T0   2      0.0           229  0    0.0         0        0        0   0.0
 sp|Q726J4|CARA_DESVH        0.00174821  0.00174821 Q726J4   3      0.0           229  0    0.0         0        0        0   0.0
-sp|Q72AQ6|PHNC_DESVH        0.00174821  0.00174821 Q72AQ6|  4      0.0           229  0    0.0         0        0        0   0.0
+sp|Q72AQ6|PHNC_DESVH        0.00174821  0.00174821 Q72AQ6   4      0.0           229  0    0.0         0        0        0   0.0
 sp|Q72EU7|TRPA_DESVH        0.00174821  0.00174821 Q72EU7   5      0.0           229  0    0.0         0        0        0   0.0
 ```
   * Columns **combined_fdp** and **paired_fdp** are used to estimated combined FDR and paired FDR by selecting identifications whose FDP are less than 0.01
