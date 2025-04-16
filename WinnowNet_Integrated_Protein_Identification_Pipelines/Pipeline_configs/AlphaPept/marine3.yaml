@@ -1,6 +1,6 @@
 workflow:
   continue_runs: false
-  create_database: false
+  create_database: true
   import_raw_data: true
   find_features: true
   search_data: true
@@ -75,7 +75,7 @@ experiment:
   - 1
   database_path: /work/08315/fs0199/ls6/alphapept_data/marine3/marine.hdf
   fasta_paths:
-  - /work/08315/fs0199/ls6/alphapept_data/marine3/Marine.fasta
+  - /work/08315/fs0199/ls6/alphapept_data/marine3/Marine_shuffled.fasta
 raw:
   n_most_abundant: 400
   use_profile_ms1: false
