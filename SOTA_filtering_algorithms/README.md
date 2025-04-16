@@ -80,12 +80,17 @@ InterProphetParser THREADS=8 DECOY=Rev_ NONSI NONSM NONSP NONRS input.pep.xml iP
 Runs iProphet with 8 threads and specific decoy and normalization options.
 
 ## Applying FDR Control
-After filtering, reading the outputs and applying an FDR (False Discovery Rate) control to finalize the results.
+* After filtering, reading the outputs and applying an FDR (False Discovery Rate) control to finalize the results at PSM/Peptide level.
 
 ```bash
 python filtering_combineFDR.py -i inputfile -f 0.01 -m tsv 
 ```
 This script reads output files (in TSV format for ms2rescore, Percolator, and Crux; or prophetxml/iprophetxml for PeptideProphet/iProphet) and applies an FDR threshold of 1%.
-* `-i inputfile` specifies the input file generated from filtering algorithms
-* `-f 0.01` specifies the FDR
-* `-m tsv` indicates the format of input files
+  * `-i inputfile` specifies the input file generated from filtering algorithms
+  * `-f 0.01` specifies the FDR
+  * `-m tsv` indicates the format of input files
+
+### Output Format Description
+  * `.psm.txt` file indicates the PSMs filtered at PSM level at 1%
+  * `.pep.txt` file indicates the identified peptides filtered at peptide level at 1%
+  * These two files are used for protein assembling, the details are shown as `README.md` in the github homepage
