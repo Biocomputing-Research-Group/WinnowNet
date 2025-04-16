@@ -89,10 +89,11 @@ Filter the re-scored PSM candidates to control the false discovery rate (FDR) at
 python filtering.py -i rescore.out.txt -p tsv_file -o filtered
 ```
 * The filtered output files include updated PSM information (new predicted scores, spectrum IDs, identified peptides, and corresponding proteins).
-Assembled filtered identified peptides into proteins
+* Assembling filtered identified peptides into proteins
 ```bash
 python sipros_peptide_assembling.py
 ```
+When assembling filtered, identified peptides into proteins, the overall protein-level FDR depends on the quality of the filtered peptide list. An initial peptide-level FDR (for example, 1%) may lead to a protein-level FDR that is higher than desired. In such cases, you need to re-filter the peptides using a stricter (i.e., lower) FDR threshold until you achieve a 1% protein-level FDR. 
 
 ## Contact and Support
 For further assistance, please consult the GitHub repository or reach out to the project maintainers.
