@@ -29,8 +29,8 @@ java -jar fdrbench-0.0.1.jar -i ../pep_compliment.txt -fold 1 -pep ../foreign_sp
   * `-o ../pep_compliment_out.csv`: Output CSV file for the results.
   
 ### Sample Output Results
-The output file (`pep_compliment_out.csv`) will contain several columns, such as peptide sequence, modified peptide (if applicable), charge state, q-value, score, estimated combined FDP and paired FDP, among other statistics. Below is an example snippet of the result:
-```bash
+The output file (`pep_compliment_out.csv`) will contain several columns, such as peptide sequence, modified peptide (if applicable), charge state, q-value, score, estimated combined FDP and paired FDP, among other statistics. Below is an example snippet of the result at peptide level:
+```css
 peptide	mod_peptide	charge	q_value	score	combined_fdp	n_t	n_p	paired_fdp	n_p_t_s	n_p_s_t	vt	lower_bound_fdp
 EALVTGENTSDAYTAATKALDK	EALVTGENTSDAYTAATKALDK	2	0.00197172	19	0.0	176	0	0.0	0	0	0	0.0
 QQSSANNGDLVVALLGDEATCK	QQSSANNGDLVVALLGDEATC[57.0215]K	2	0.00197172	21	0.0	176	0	0.0	0	0	0	0.0
@@ -43,5 +43,14 @@ VLKGSSNTESAQLNNK	VLKGSSNTESAQLNNK	2	0.00197172	116	0.0	176	0	0.0	0	0	0	0.0
 NAKPAAVAPAPAASPAEDAGVLDFEDFQK	NAKPAAVAPAPAASPAEDAGVLDFEDFQK	3	0.00197172	126	0.0	176	0	0.0	0	0	0	0.0
 LLVDTGEMQPLVSEDR	LLVDTGEMQPLVSEDR	2	0.00197172	130	0.0	176	0	0.0	0	0	0	0.0
 VNVAGGGLSGQAEAVR	VNVAGGGLSGQAEAVR	2	0.00197172	134	0.0	176	0	0.0	0	0	0	0.0
+```
+Below is an example snippet of the result at protein level:
+```css
+Protein.Group  PG.Q.Value  q_value     protein  score  combined_fdp  n_t   n_p  paired_fdp  n_p_t_s  n_p_s_t  vt  lower_bound_fdp
+sp|B8I601|GATA_RUMCH        0.00174821  0.00174821 B8I601   1      0.0           229  0    0.0         0        0        0   0.0
+sp|B8I6T0|PROA_RUMCH        0.00174821  0.00174821 B8I6T0   2      0.0           229  0    0.0         0        0        0   0.0
+sp|Q726J4|CARA_DESVH        0.00174821  0.00174821 Q726J4   3      0.0           229  0    0.0         0        0        0   0.0
+sp|Q72AQ6|PHNC_DESVH        0.00174821  0.00174821 Q72AQ6|  4      0.0           229  0    0.0         0        0        0   0.0
+sp|Q72EU7|TRPA_DESVH        0.00174821  0.00174821 Q72EU7   5      0.0           229  0    0.0         0        0        0   0.0
 ```
   * Columns **combined_fdp** and **paired_fdp** are used to estimated combined FDR and paired FDR by selecting identifications whose FDP are less than 0.01
