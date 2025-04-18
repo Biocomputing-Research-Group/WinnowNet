@@ -87,3 +87,32 @@ python Prediction.py -i marine3_WorkDirectory/marine3_spectra.pkl -o marine3_Wor
 ```
 #### Step 3. Using score from WinnowNet and Follow the Steps to Control FDR by AlphaPept
 [**FDR Control**](https://github.com/MannLabs/alphapept/blob/master/nbs/06_score.ipynb)
+
+## 4. PEAKS Workflow
+### A. Original PEAKS Pipeline
+#### Step 1. Runs DDA database search identification mode PEAKS Studio 12.5 GUI
+
+### D. Integrating WinnowNet with PEAKS
+#### Step 1: Start a workflow as shown above in PEAKS Studio 12.5 and convert data file
+```bash
+python  xml2win.py -in marine3_WorkDirectory/ -o marine3_WorkDirectory/marine3_spectra.pkl
+```
+#### Step 2: Rescore with WinnowNet
+Apply WinnowNet rescoring to the converted data file.
+```bash
+python Prediction.py -i marine3_WorkDirectory/marine3_spectra.pkl -o marine3_WorkDirectory/marine3.rescore.txt -m att_pytorch.pt
+```
+#### Step 3: Convert Data for Philosopher Tool
+Convert the rescored output into a format compatible with FragPipe's Philosopher tool.
+```bash
+python win2prophet.py -i marine3_WorkDirectory/marine3.rescore.txt -w marine3_WorkDirectory/
+```
+#### Step 4: Protein Inference and FDR Control Using Philosopher
+```bash
+./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 proteinprophet --maxppmdiff 2000000 --output combined marine3_WorkingDirectory/filelist_proteinprophet.txt
+
+./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 database --annotate marine3_WorkingDirectory/Marine_shuffled.fasta --prefix shuffled_
+
+./FragPipe-22.0/fragpipe/tools/Philosopher/philosopher-v5.1.1 filter --sequential --prot 0.01 --tag rev_ --pepxml marine3_WorkingDirectory --protxml marine3_WorkingDirectory/combined.prot.xml --razor
+```
+Note: These commands handle protein inference (`proteinprophet`), FASTA database annotation, and sequential FDR filtering (`filter`). Ensure that input file paths and parameters match your environment.
