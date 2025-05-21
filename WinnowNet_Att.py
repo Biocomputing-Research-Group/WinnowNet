@@ -4,6 +4,8 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.utils.data as Data
 import time
+import sys
+import getopt
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from datetime import timedelta
@@ -11,7 +13,7 @@ from sklearn import metrics
 import numpy as np
 import glob
 import pickle
-from SpectraFeatures import expToDict, theoryToDict
+from components.encoders import MassEncoder, PeakEncoder, PositionalEncoder
 
 pairmaxlength=500
 threshold=0.9
@@ -41,53 +43,39 @@ def pad_control(data):
         while (len(data) < pairmaxlength):
             data.append([0, 0])
     data = sorted(data, key=lambda x: x[0])
-    return data
-
-def pad_control_3d(data):
-    data = sorted(data, key=lambda x: x[1], reverse=True)
-    if len(data) > pairmaxlength:
-        data = data[:pairmaxlength]
-    else:
-        while (len(data) < pairmaxlength):
-            data.append([0, 0, 0])
-    data = sorted(data, key=lambda x: x[0])
-    return data
+    return np.asarray(data,dtype=float)
 
 
-def readData(psms,exps,theoreticals):
+def readData(psms, features):
     L = []
     Yweight = []
+    positive=0
+    negative=0
 
     for i in range(len(psms)):
         with open(psms[i]) as f:
             D_Label=LabelToDict(f)
-        with open(exps[i],'r') as f:
-            D_exp=expToDict(f)
-        with open(theoreticals[i],'r') as f:
-            D_theory=theoryToDict(f)
+        with open(features[i],'rb') as f:
+            D_features=pickle.load(f)
 
         for j in D_Label.keys():
             if D_Label[j][1]==1:
-                if D_Label[j][0]>0.9:
-                    scan=j.split('_')[-3]
-                    L.append(D_exp[scan][1])
-                    L.append(D_theory[j])
+                if D_Label[j][0]>threshold:
+                    L.append(D_features[j])
                     Y = D_Label[j][1]
                     weight = D_Label[j][0]
+                    positive+=1
                     Yweight.append([Y, weight])
             else:
-                if D_Label[j][0]<0.25:
-                    scan=j.split('_')[-3]
-                    L.append(D_exp[scan][1])
-                    L.append(D_theory[j])
-                    Y = D_Label[j][1]
-                    weight = 0
-                    Yweight.append([Y, weight])
+                L.append(D_features[j])
+                Y = D_Label[j][1]
+                weight = D_Label[j][0]
+                negative+=1
+                Yweight.append([Y, weight])
 
-        del D_exp
-        del D_theory
-        del D_Label
-
+        del D_features
+    print(positive)
+    print(negative)
     return L, Yweight
 
 
@@ -100,13 +88,14 @@ class DefineDataset(Data.Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-        xFeatures = self.X[idx]
+        xspectra1 = pad_control(self.X[idx][0])
+        xspectra2 = pad_control(self.X[idx][1])
         y = self.yweight[idx][0]
         weight = self.yweight[idx][1]
-        xFeatures = torch.FloatTensor(xFeatures)
-        addfeat=torch.FloatTensor([0,0,0,0,0,0,0,0,0,0,0])
+        xspectra1 = torch.FloatTensor(xspectra1)
+        xspectra2 = torch.FloatTensor(xspectra2)
 
-        return xFeatures, addfeat,y, weight
+        return xspectra1, xspectra2, y, weight
 
 
 
@@ -121,92 +110,84 @@ class my_loss(torch.nn.Module):
         losssum = torch.sum(w_entropy)
         return losssum
 
-class T_Net(nn.Module):
-    def __init__(self, k):
-        super(T_Net, self).__init__()
-        self.k = k
-        self.conv1 = torch.nn.Conv1d(k, 64, 1)
-        self.conv2 = torch.nn.Conv1d(64, 256, 1)
-        self.fc1 = nn.Linear(256, k * k)
 
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(256)
-
-    def forward(self, x):
-        batchsize = x.size()[0]
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 256)
-
-        x = self.fc1(x)
-
-        identity_matrix = Variable(torch.from_numpy(np.eye(self.k).flatten().astype(np.float32))).view(1,self.k * self.k).repeat(batchsize, 1)
-        if x.is_cuda:
-            identity_matrix = identity_matrix.cuda()
-        x = x + identity_matrix
-        x = x.view(-1, self.k, self.k)
-        return x
-
-
-class Transform(nn.Module):
-    def __init__(self):
+class MS2Encoder(nn.Module):
+    def __init__(
+        self,
+        dim_model: int,
+        dim_intensity: int,
+        n_heads: int,
+        dim_feedforward: int,
+        n_layers: int,
+        dropout: float = 0.1,
+        max_len: int = 150
+    ):
         super().__init__()
-        self.stn = T_Net(k=3)
+        self.peak_encoder = PeakEncoder(
+            dim_model=dim_model,
+            dim_intensity=dim_intensity,
+            min_wavelength=0.001,
+            max_wavelength=7000,
+        )
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, dim_model))
+        self.pos_emb = nn.Parameter(torch.zeros(1, max_len+1, dim_model))
+        layer = nn.TransformerEncoderLayer(
+            d_model=dim_model,
+            nhead=n_heads,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            batch_first=True
+        )
+        self.transformer = nn.TransformerEncoder(layer, num_layers=n_layers)
 
-        self.conv1 = nn.Conv1d(3, 64, 1)
-        self.conv2 = nn.Conv1d(64, 256, 1)
-        self.conv3 = nn.Conv1d(256, 512, 1)
-        self.conv4 = nn.Conv1d(512,2048,1)
+    def forward(self, spectra: torch.Tensor, mask: torch.Tensor=None):
+        B, P, _ = spectra.shape
+        x = self.peak_encoder(spectra) 
+        cls = self.cls_token.expand(B, -1, -1)
+        x = torch.cat([cls, x], dim=1)
+        x = x + self.pos_emb[:, : P+1, :]
+        if mask is not None:
+            cls_mask = torch.zeros(B, 1, dtype=torch.bool, device=mask.device)
+            attn_mask = torch.cat([cls_mask, mask == 0], dim=1)  # True=>ignore
+        else:
+            attn_mask = None
+        out = self.transformer(x, src_key_padding_mask=attn_mask)
+        spec_rep = out[:, 0, :]
+        return spec_rep
 
-        self.bn1 = nn.BatchNorm1d(64)
-        self.bn2 = nn.BatchNorm1d(256)
-        self.bn3 = nn.BatchNorm1d(512)
-        self.bn4 = nn.BatchNorm1d(2048)
+class DualPeakClassifier(nn.Module):
+    def __init__(
+        self,
+        dim_model: int = 256,
+        dim_intensity: int = 128,
+        n_heads: int = 4,
+        dim_feedforward: int = 512,
+        n_layers: int = 4,
+        num_classes: int = 2,
+        dropout: float = 0.2,
+        max_len: int = 500,
+    ):
+        super().__init__()
+        self.encoder1 = MS2Encoder(
+            dim_model, dim_intensity, n_heads, dim_feedforward, n_layers, dropout, max_len
+        )
+        self.encoder2 = MS2Encoder(
+            dim_model, dim_intensity, n_heads, dim_feedforward, n_layers, dropout, max_len
+        )
+        self.classifier = nn.Linear(2 * dim_model, num_classes)
 
-    def forward(self, x):
-        n_pts = x.size()[2]
-        trans = self.stn(x)
-        x = x.transpose(2, 1)
-        x = torch.bmm(x, trans)
-        x = x.transpose(2, 1)
-        x = F.relu(self.bn1(self.conv1(x)))
-        x = F.relu(self.bn2(self.conv2(x)))
-        x = F.relu(self.bn3(self.conv3(x)))
-        x = self.bn4(self.conv4(x))
-        x = torch.max(x, 2, keepdim=True)[0]
-        x = x.view(-1, 2048)
-
-        return x
-
-
-
-class Net(nn.Module):
-    def __init__(self):
-        super(Net, self).__init__()
-        self.transform = Transform()
-        self.fc1 = nn.Linear(2048, 512)
-        self.fc2 = nn.Linear(1024, 256)
-        self.layer1=nn.Linear(11,256)
-        self.layer2 = nn.Linear(512, 2)
-        self.dropout = nn.Dropout(p=0.3)
-        self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(256)
-
-    def forward(self, x,addfeat):
-        x = self.transform(x)
-        x = F.relu(self.bn1(self.dropout(self.fc1(x))))
-        #x = F.relu(self.bn1(self.fc1(x)))
-        #x = F.relu(self.bn2(self.dropout(self.fc2(x))))
-        #xadd=F.relu(self.layer1(addfeat))
-        #x=torch.cat((x,xadd),dim=1)
-        output = self.layer2(x)
-        return output
-
-    #def forward(self, input1, input2):
-    #    output1 = self.forward_once(input1)
-    #    output2 = self.forward_once(input2)
-    #    return self.fc(torch.cat((output1, output2), dim=1))
+    def forward(
+        self,
+        spectra1: torch.Tensor,
+        spectra2: torch.Tensor,
+        mask1: torch.Tensor = None,
+        mask2: torch.Tensor = None,
+    ):
+        rep1 = self.encoder1(spectra1, mask1)
+        rep2 = self.encoder2(spectra2, mask2)
+        joint = torch.cat([rep1, rep2], dim=-1)
+        outputs = self.classifier(joint)
+        return outputs
 
 def get_time_dif(start_time):
     end_time = time.time()
@@ -215,20 +196,19 @@ def get_time_dif(start_time):
 
 
 def evaluate(data, model, loss, device):
-    # Evaluation, return accuracy and loss
 
-    model.eval()  # set mode to evaluation to disable dropout
+    model.eval()
     data_loader = Data.DataLoader(data,batch_size=8)
 
     data_len = len(data)
     total_loss = 0.0
     y_true, y_pred = [], []
 
-    for data1, addfeat,label, weight in data_loader:
-        data1, addfeat,label, weight = Variable(data1), Variable(addfeat),Variable(label), Variable(weight)
-        data1, addfeat,label, weight = data1.to(device),addfeat.to(device),label.to(device), weight.to(device)
+    for input1, input2, label, weight in data_loader:
+        input1, input2, label, weight = Variable(input1), Variable(input2),Variable(label), Variable(weight)
+        input1, input2, label, weight = input1.to(device),input2.to(device),label.to(device), weight.to(device)
 
-        output = model(data1,addfeat)
+        output = model(input1,input2)
         losses = loss(output, label, weight)
 
         total_loss += losses.data.item()
@@ -244,23 +224,25 @@ def evaluate(data, model, loss, device):
     Pos_prec = 0
     Neg_prec = 0
 
+    for idx in range(len(y_pred)):
+        if y_pred[idx] == 1:
+            if y_true[idx] == 1:
+                TP += 1
+            else:
+                FP += 1
+        else:
+            if y_true[idx] == 1:
+                TN += 1
+            else:
+                FN += 1
+
     if y_pred.count(1) == 0:
         Pos_prec = 0
+        Neg_prec = FN / (TN + FN)
     elif y_pred.count(0) == 0:
+        Pos_prec = TP / (TP + FP)
         Neg_prec = 0
     else:
-        for idx in range(len(y_pred)):
-            if y_pred[idx] == 1:
-                if y_true[idx] == 1:
-                    TP += 1
-                else:
-                    FP += 1
-            else:
-                if y_true[idx] == 1:
-                    TN += 1
-                else:
-                    FN += 1
-
         Pos_prec = TP / (TP + FP)
         Neg_prec = FN / (TN + FN)
 
@@ -305,37 +287,37 @@ def test_model(model, test_data, device,model_str):
     print("Time usage:", get_time_dif(start_time))
 
 
-def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test):
+def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name, pretrained_model):
     LR = 1e-3
     train_data = DefineDataset(X_train, yweight_train)
     val_data = DefineDataset(X_val, yweight_val)
     test_data = DefineDataset(X_test, yweight_test)
     device = torch.device("cuda")
-    model = Net()
+    model = DualPeakClassifier(dim_model=256,n_heads=4,dim_feedforward=512,n_layers=4,dim_intensity=64,num_classes=2,dropout=0.2,max_len=500)
     model.cuda()
     model = nn.DataParallel(model)
     model.to(device)
-    #model.load_state_dict(torch.load('./models_80easy_20difficult/epoch49.pt', map_location=lambda storage, loc: storage))
+    if len(pretrained_model)>0:
+        print("loading pretrained_model")
+        model.load_state_dict(torch.load(pretrained_model, map_location=lambda storage, loc: storage))
     criterion = my_loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
     #model.load_state_dict(torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
     #test_model(model, test_data, device)
     best_loss = 10000
-    for epoch in range(50, 100):
+    for epoch in range(0, 50):
         start_time = time.time()
         best_epoch_loss = 10000
         # load the training data in batch
         batch_count = 0
         model.train()
-        train_loader = Data.DataLoader(train_data, batch_size=8, num_workers=8, shuffle=True, pin_memory=True)
-        for x1_batch, addfeat_batch,y_batch, weight in train_loader:
+        train_loader = Data.DataLoader(train_data, batch_size=32, num_workers=8, shuffle=True, pin_memory=True)
+        for input1, input2, y_batch, weight in train_loader:
             batch_count = batch_count + 1
-            inputs, addfeat,targets, weight = Variable(x1_batch),Variable(addfeat_batch),Variable(y_batch), Variable(
-                weight)
-            inputs, addfeat,targets, weight = inputs.to(device), addfeat.to(device),targets.to(device), weight.to(
-                device)
+            input1, input2,targets, weight = Variable(input1),Variable(input2),Variable(y_batch), Variable(weight)
+            input1, input2,targets, weight = input1.to(device), input2.to(device),targets.to(device), weight.to(device)
             optimizer.zero_grad()
-            outputs = model(inputs,addfeat)  # forward computation
+            outputs = model(input1,input2)  # forward computation
             loss = criterion(outputs, targets, weight)
             # backward propagation and update parameters
             loss.backward()
@@ -349,14 +331,14 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
             if val_loss < best_epoch_loss:
                 # store the best result
                 best_epoch_loss = val_loss
-                torch.save(model.state_dict(), './models_80easy_20difficult/epoch' + str(epoch) + '.pt')
+                torch.save(model.state_dict(), 'checkpoints/epoch' + str(epoch) + '.pt')
 
             if val_loss < best_loss:
                 best_loss = val_loss
-                torch.save(model.state_dict(), 'cnn_pytorch_att.pt')
+                torch.save(model.state_dict(), model_name)
 
         model.load_state_dict(
-            torch.load('./models_80easy_20difficult/epoch' + str(epoch) + '.pt', map_location=lambda storage, loc: storage))
+            torch.load('checkpoints/epoch' + str(epoch) + '.pt', map_location=lambda storage, loc: storage))
         train_acc, train_loss, train_Posprec, train_Negprec = evaluate(train_data, model, criterion, device)
         val_acc, val_loss, val_PosPrec, val_Negprec = evaluate(val_data, model, criterion, device)
         time_dif = get_time_dif(start_time)
@@ -367,37 +349,51 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
                          val_PosPrec, val_Negprec, time_dif))
 
     model.load_state_dict(
-        torch.load('cnn_pytorch_att.pt', map_location=lambda storage, loc: storage))
+        torch.load(model_name, map_location=lambda storage, loc: storage))
     for i in range(0,50):
-        test_model(model, test_data, device,'./models_80easy_20difficult/epoch'+str(i)+'.pt')
+        test_model(model, test_data, device,'checkpoints/epoch'+str(i)+'.pt')
 
 
 if __name__ == "__main__":
-    psms = glob.glob('/media/fs0199/easystore/Protein/DeepFilterV2_local/240k_PSMs_new/*tsv')
-    exps=[]
-    theoreticals=[]
-    for name in psms:
-        exps.append(name.replace('240k_PSMs_new/', '240k_ms2/').replace('.tsv', '.ms2'))
-    for name in psms:
-        theoreticals.append(name.replace('240k_PSMs_new/', '240k_theoretical/').replace('.tsv', '.txt'))
+    argv=sys.argv[1:]
+    try:
+        opts, args = getopt.getopt(argv, "hi:m:p:t:")
+    except:
+        print("Error Option, using -h for help information.")
+        sys.exit(1)
+    if len(opts)==0:
+        print("\n\nUsage:\n")
+        print("-i\t Directories for spectra features and Label\n")
+        print("-m\t Pre-trained model name\n")
+        print("-p\t Output trained model name\n")
+        sys.exit(1)
+        start_time=time.time()
+    input_directory=""
+    model_name=""
+    pretrained_model=""
+    for opt, arg in opts:
+        if opt in ("-h"):
+            print("\n\nUsage:\n")
+            print("-i\t Directories for spectra features\n")
+            print("-m\t ms2 format spectrum information\n")
+            print("-p\t Output trained model name\n")
+            sys.exit(1)
+        elif opt in ("-i"):
+            input_directory=arg
+        elif opt in ("-m"):
+            model_name=arg
+        elif opt in ("-p"):
+            pretrained_model=arg
+    psms = glob.glob(input_directory+'/*tsv')
+    features = glob.glob(input_directory+'/*pkl')
     start = time.time()
-    L, Yweight = readData(psms,exps,theoreticals)
-    eight_easy_X_train, twenty_easy_X_train, eight_easy_yweight_train, twenty_easy_yweight_train= train_test_split(L[:5000], Yweight[:5000], test_size=0.2,random_state=10)
-
-    features = glob.glob('/home/UNT/fs0199/WinnowNet_training/marine_data/spectra_features/*pkl')
-    psm = []
-    for name in features:
-        psm.append(name.replace('spectra_features/', 'Label_PSMs/').replace('.pkl', '.tsv'))
-    L, Yweight = readData(features, psm)
-    X_train, X_test, yweight_train, yweight_test= train_test_split(L[:1215], Yweight[:1215], test_size=0.1,random_state=10)
-    eight_difficult_X_train, twenty_difficult_X_train, eight_difficult_yweight_train, twenty_difficult_yweight_train= train_test_split(X_train, yweight_train, test_size=0.2,random_state=10)
-    X_train=twenty_easy_X_train+eight_difficult_X_train
-    yweight_train=twenty_easy_yweight_train+eight_difficult_yweight_train
+    L, Yweight = readData(psms,features)
+    X_train, X_test, yweight_train, yweight_test= train_test_split(L, Yweight, test_size=0.1,random_state=10)
     X_train, X_val, yweight_train, yweight_val = train_test_split(X_train, yweight_train, test_size=0.1,random_state=10)
     end = time.time()
     print('loading data: ' + str(end - start))
     print("length of training data: " + str(len(X_train)))
     print("length of validation data: " + str(len(X_val)))
     print("length of test data: " + str(len(X_test)))
-    train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test)
+    train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test, model_name, pretrained_model)
     print('done')

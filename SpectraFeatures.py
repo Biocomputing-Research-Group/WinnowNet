@@ -239,14 +239,23 @@ def IonExtract(Xexp,Xtheory,X_add_feature,key,return_dict):
     xFeatures = xFeatures.transpose()
     return_dict[key]=[xFeatures,X_add_feature]
 
+def IonExtract_Att(Xexp,Xtheory,X_add_feature,key,return_dict):
+    Xexp = np.asarray(Xexp[1:][0], dtype=float)
+    Xtheory = np.asarray(Xtheory, dtype=float)
 
+    transformer = StandardScaler()
+    Norm = transformer.fit_transform(Xexp)
+    Xexp[:, 1] = Norm[:, 1]
+    Norm = transformer.fit_transform(Xtheory)
+    Xtheory[:, 1] = Norm[:, 1]
+    return_dict[key]=[Xexp,Xtheory]
 
 
 
 if __name__ == "__main__":
     argv=sys.argv[1:]
     try:
-        opts, args = getopt.getopt(argv, "hi:s:o:t:")
+        opts, args = getopt.getopt(argv, "hi:s:o:t:f:")
     except:
         print("Error Option, using -h for help information.")
         sys.exit(1)
@@ -256,12 +265,14 @@ if __name__ == "__main__":
         print("-s\t ms2 format spectrum information\n")
         print("-o\t Spectrum features output file\n")
         print("-t\t Number of threads\n")
+        print("-f\t Attention mode or CNN mode")
         sys.exit(1)
     start_time=time.time()
     exp_file=""
     tsv_file=""
     theoretical_file=""
     output_file=""
+    mode=""
     for opt, arg in opts:
         if opt in ("-h"):
             print("\n\nUsage:\n")
@@ -269,6 +280,7 @@ if __name__ == "__main__":
             print("-s\t ms2 format spectrum information\n")
             print("-o\t Spectrum features output file\n")
             print("-t\t Number of threads\n")
+            print("-f\t Attention mode or CNN mode")
             sys.exit(1)
         elif opt in ("-i"):
             tsv_file=arg
@@ -278,6 +290,8 @@ if __name__ == "__main__":
             output_file=arg
         elif opt in ("-t"):
             num_cpus=arg
+        elif opt in ("-f"):
+            mode=arg
 
     theoretical_file=exp_file.split('/')[-1].replace('.ms2','.txt')
     f = open(exp_file)
@@ -297,14 +311,24 @@ if __name__ == "__main__":
     D_theory = theoryToDict(f)
     f.close()
     print('Theoretical features loaded!')
-    manager = Manager()
-    return_dict = manager.dict()
-    processors = os.cpu_count()
-    pool = Pool(processes=int(num_cpus))
-    for key in D_theory:
-        pool.apply_async(IonExtract, args=(D_exp[key.split('_')[-3]],D_theory[key],D_feature[key],key,return_dict))
-    pool.close()
-    pool.join()
+    if mode=='cnn':
+        manager = Manager()
+        return_dict = manager.dict()
+        processors = os.cpu_count()
+        pool = Pool(processes=int(num_cpus))
+        for key in D_theory:
+            pool.apply_async(IonExtract, args=(D_exp[key.split('_')[-3]],D_theory[key],D_feature[key],key,return_dict))
+        pool.close()
+        pool.join()
+    else:
+        manager = Manager()
+        return_dict = manager.dict()
+        processors = os.cpu_count()
+        pool = Pool(processes=int(num_cpus))
+        for key in D_theory:
+            pool.apply_async(IonExtract_Att, args=(D_exp[key.split('_')[-3]],D_theory[key],D_feature[key],key,return_dict))
+        pool.close()
+        pool.join()
     print('Features generated!')
 
     return_dict=dict(return_dict)

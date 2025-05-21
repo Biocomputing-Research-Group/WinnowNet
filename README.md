@@ -20,11 +20,11 @@ WinnowNet is designed for advanced processing of mass spectrometry data with two
 ### 1. Create a new conda environment and activate it.
 It is recommended to use Conda for dependency management. Run the following commands in your terminal:
 ```bash
-conda create --name WinnowNet python=3.7
+conda create --name WinnowNet python=3.8
 conda activate WinnowNet
 ```
 ### 2. Install dependencies:
-CUDA version 11.6
+CUDA version 11.8
 Pytorch GPU version is compatible with corresponding cuda version
 ```bash
 pip install -r ./requirements.txt
@@ -38,7 +38,7 @@ pip install -r ./requirements.txt
 ## Download Required Files
 * Pre-trained model can be downloaded via:
   * **CNN-based WinnowNet**: [cnn_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
-  * **Self-Attention-based WinnowNet**: [att_pytorch.pt](https://figshare.com/articles/dataset/Models/25513531)
+  * **Self-Attention-based WinnowNet**: [marine_att.pt](https://figshare.com/articles/dataset/Models/25513531)
 * A toy example is provided in this repository.
 * **Sample Input Datasets**
 [Mass spectra data for Benchmark datasets](https://figshare.com/articles/dataset/Datasets/25511770)
