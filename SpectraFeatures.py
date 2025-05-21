@@ -155,13 +155,13 @@ def read_tsv(f,psm_dict,Xexp):
     peptidearray=[]
     for line_id, line in enumerate(f):
         s=line.strip().split('\t')
-        idx=s[1]
+        idx=s[0]
         PSMId=idx.strip().split('_')
         fileidx='_'.join(PSMId[:-3])
         scannum=PSMId[-3]
         charge=PSMId[-2]
-        qvalue=float(s[2])
-        peptidestr=s[4]
+        qvalue=float(s[1])
+        peptidestr=s[3].split('.')[1]
         pep = peptide()
         pep.PSMId='_'.join(PSMId)
         pep.qvalue=qvalue
@@ -307,6 +307,7 @@ if __name__ == "__main__":
     D_feature=feature_dict(psm_dict)
     print('Additional features loaded!')
     subprocess.run('./Sipros_OpenMP -i1 idx.txt -i2 charge.txt -i3 peptide.txt -i4 '+theoretical_file, shell=True, executable="/bin/bash")
+    subprocess.run('rm idx.txt charge.txt peptide.txt test.SE.Spe2Pep.txt', shell=True, executable="/bin/bash")
     f = open(theoretical_file)
     D_theory = theoryToDict(f)
     f.close()
