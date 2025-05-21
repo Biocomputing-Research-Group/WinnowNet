@@ -75,7 +75,7 @@ python WinnowNet_Att.py -i spectra.pkl -m att_pytorch.pt
 
 ## Inference
 ### PSM Rescoring
-To generate feature representations for PSM candidates and perform re-scoring using the self-attention model, run:
+To generate input representations for PSM candidates and perform re-scoring using the self-attention model, run:
 ```bash
 python SpectraFeatures.py -i tsv_file -s ms2_file -o spectra.pkl -t 48 -f att 
 python Prediction.py -i spectra.pkl -o rescore.out.txt -m att_pytorch.pt  
