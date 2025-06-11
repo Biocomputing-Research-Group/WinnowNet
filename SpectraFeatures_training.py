@@ -155,13 +155,13 @@ def read_tsv(f,psm_dict,Xexp):
     peptidearray=[]
     for line_id, line in enumerate(f):
         s=line.strip().split('\t')
-        idx=s[0]
+        idx=s[1]
         PSMId=idx.strip().split('_')
         fileidx='_'.join(PSMId[:-3])
         scannum=PSMId[-3]
         charge=PSMId[-2]
-        qvalue=1
-        peptidestr=s[1].split('.')[1]
+        qvalue=float(s[2])
+        peptidestr=s[4]
         pep = peptide()
         pep.PSMId='_'.join(PSMId)
         pep.qvalue=qvalue
