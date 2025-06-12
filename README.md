@@ -1,6 +1,8 @@
 # WinnowNet
 This algorithm was implemented and tested on Ubuntu 20.04.6 LTS (GNU/Linux 5.15.0-84-generic, x86_64).
-## Note: This repository contains the development version of WinnowNet. For the code used to reproduce the experiments in the paper, please refer to the following repository: https://github.com/Biocomputing-Research-Group/WinnowNet4Review
+## Note: 
+This repository contains the development version of WinnowNet. For the code used to reproduce the experiments in the paper, please refer to the following repository: https://github.com/Biocomputing-Research-Group/WinnowNet4Review
+
 ## Overview
 WinnowNet is designed for advanced processing of mass spectrometry data with two core methods: a CNN-based approach and a self-attention-based approach. The repository includes scripts for feature extraction, model training, prediction (inference), and evaluation. A toy example is included to help users get started.
 
