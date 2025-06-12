@@ -14,6 +14,7 @@ import pickle
 import sys
 import getopt
 
+threshold=0.9
 def LabelToDict(fp):
     sample = fp.read().strip().split('\n')
     label_dic = dict()
@@ -31,23 +32,31 @@ def LabelToDict(fp):
     fp.close()
     return label_dic
 
-def readData(features_train, psm_train):
+
+def readData(psms, features):
     L = []
     Yweight = []
 
-    for i in range(len(features_train)):
-        with open(features_train[i],'rb') as f:
+    for i in range(len(psms)):
+        with open(psms[i]) as f:
+            D_Label=LabelToDict(f)
+        with open(features[i],'rb') as f:
             D_features=pickle.load(f)
-        with open(psm_train[i]) as f:
-            D_Label = LabelToDict(f)
 
         for j in D_Label.keys():
-            L.append(D_features[j])
-            Y = D_Label[j][1]
-            weight = D_Label[j][0]
-            Yweight.append([Y, weight])
+            if D_Label[j][1]==1:
+                if D_Label[j][0]>threshold:
+                    L.append(D_features[j][0])
+                    Y = D_Label[j][1]
+                    weight = 1
+                    Yweight.append([Y, weight])
+            else:
+                L.append(D_features[j][0])
+                Y = D_Label[j][1]
+                weight = D_Label[j][0]
+                Yweight.append([Y, weight])
+
         del D_features
-        del D_Label
 
     return L, Yweight
 
@@ -61,38 +70,17 @@ class DefineDataset(Data.Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-        Xexp = self.X[idx][0]
-        Xtheory = self.X[idx][1]
+        mz = self.X[idx][0]
+        exp = self.X[idx][1]
+        theory = self.X[idx][2]
         y = self.yweight[idx][0]
         weight = self.yweight[idx][1]
-        newXexp=[]
-        newXtheory=Xtheory[0]
-        for cid, chargearray in enumerate(Xexp):
-            if cid==0:
-                for peak in chargearray:
-                    newXexp.append(peak)
-            else:
-                for peak in chargearray:
-                    mass=peak[0]*cid
-                    newXexp.append([mass,peak[1]])
-
-
-        Xexp=sorted(newXexp)
-        Xtheory=sorted(newXtheory)
-        Xexp = np.asarray(Xexp, dtype=float)
-        Xtheory = np.asarray(Xtheory, dtype=float)
 
         xFeatures=[]
-        for mz in Xexp:
-            for tmz in Xtheory:
-                if abs(mz[0]-tmz[0])<diffDa:
-                    xFeatures.append([mz[0]-tmz[0],mz[1],tmz[1]])
+        for i in range(len(mz)):
+            xFeatures.append([mz[i],exp[i],theory[i]])
 
-        xFeatures=np.asarray(pad_control_3d(xFeatures),dtype=float)
-
-        transformer = MinMaxScaler()
-        Norm = transformer.fit_transform(xFeatures)
-        xFeatures[:, 1] = Norm[:, 1]
+        xFeatures=np.asarray(xFeatures,dtype=float)
         xFeatures = xFeatures.transpose()
         xFeatures = torch.FloatTensor(xFeatures)
 
@@ -303,7 +291,7 @@ def test_model(model, test_data, device):
     print("Time usage:", get_time_dif(start_time))
 
 
-def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name):
+def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name,pretrained_model):
     LR = 1e-3
     train_data = DefineDataset(X_train, yweight_train)
     val_data = DefineDataset(X_val, yweight_val)
@@ -313,20 +301,22 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
     model.cuda()
     model = nn.DataParallel(model)
     model.to(device)
-    #model.load_state_dict(torch.load('./models_original/epoch21.pt', map_location=lambda storage, loc: storage))
+    if len(pretrained_model)>0:
+        print("loading pretrained_model")
+        model.load_state_dict(torch.load(pretrained_model, map_location=lambda storage, loc: storage))
     criterion = my_loss()
     optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
     #model.load_state_dict(
     #    torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
     #test_model(model, test_data, device)
     best_loss = 10000
+    train_loader = Data.DataLoader(train_data, batch_size=128, num_workers=8, shuffle=True, pin_memory=True)
     for epoch in range(0, 50):
         start_time = time.time()
         best_epoch_loss = 10000
         # load the training data in batch
         batch_count = 0
         model.train()
-        train_loader = Data.DataLoader(train_data, batch_size=32, num_workers=8, shuffle=False, pin_memory=True)
         for x1_batch, y_batch, weight in train_loader:
             batch_count = batch_count + 1
             inputs, targets, weight = Variable(x1_batch),Variable(y_batch), Variable(
@@ -339,25 +329,13 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
             # backward propagation and update parameters
             loss.backward()
             optimizer.step()
-
-            # evaluate on both training and test dataset
-
-            # train_acc, train_loss, train_Posprec, train_Negprec = evaluate(train_data, model, criterion, device)
-            val_acc, val_loss, val_PosPrec, val_Negprec = evaluate(val_data, model, criterion, device)
-            # print("val acc: "+str(val_acc)+" val loss: "+str(val_loss)+" val negprecision: "+str(val_Negprec)+" val posprec: "+str(val_PosPrec))
-            if val_loss < best_epoch_loss:
-                # store the best result
-                best_epoch_loss = val_loss
-                torch.save(model.state_dict(), 'epoch' + str(epoch) + '.pt')
-
-            if val_loss < best_loss:
-                best_loss = val_loss
-                torch.save(model.state_dict(), model_name)
-
-        model.load_state_dict(
-            torch.load('epoch' + str(epoch) + '.pt', map_location=lambda storage, loc: storage))
+            torch.save(model.state_dict(), 'checkpoints/epoch' + str(epoch) + '.pt')
         train_acc, train_loss, train_Posprec, train_Negprec = evaluate(train_data, model, criterion, device)
         val_acc, val_loss, val_PosPrec, val_Negprec = evaluate(val_data, model, criterion, device)
+        if val_loss < best_loss:
+            best_loss = val_loss
+            torch.save(model.state_dict(), model_name)
+
         time_dif = get_time_dif(start_time)
         msg = "Epoch {0:3}, Train_loss: {1:>7.2}, Train_acc {2:>6.2%}, Train_Posprec {3:>6.2%}, Train_Negprec {" \
               "4:>6.2%}, " + "Val_loss: {5:>6.2}, Val_acc {6:>6.2%},Val_Posprec {7:6.2%}, Val_Negprec {8:6.2%} " \
@@ -365,62 +343,48 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
         print(msg.format(epoch + 1, train_loss, train_acc, train_Posprec, train_Negprec, val_loss, val_acc,
                          val_PosPrec, val_Negprec, time_dif))
 
-    model.load_state_dict(torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
-    test_model(model, test_data, device)
 
 
 if __name__ == "__main__":
     argv=sys.argv[1:]
     try:
-        opts, args = getopt.getopt(argv, "hi:s:o:t:")
+        opts, args = getopt.getopt(argv, "hi:m:p:t:")
     except:
         print("Error Option, using -h for help information.")
         sys.exit(1)
     if len(opts)==0:
         print("\n\nUsage:\n")
-        print("-i\t Directories for spectra features\n")
-        print("-m\t Output trained model name\n")
-        print("-t\t Number of threads\n")
+        print("-i\t Directories for spectra features and Label\n")
+        print("-m\t Pre-trained model name\n")
+        print("-p\t Output trained model name\n")
         sys.exit(1)
-    start_time=time.time()
-    exp_file=""
-    tsv_file=""
-    theoretical_file=""
-    output_file=""
+        start_time=time.time()
+    input_directory=""
+    model_name=""
+    pretrained_model=""
     for opt, arg in opts:
         if opt in ("-h"):
             print("\n\nUsage:\n")
             print("-i\t Directories for spectra features\n")
             print("-m\t ms2 format spectrum information\n")
-            print("-t\t Number of threads\n")
+            print("-p\t Output trained model name\n")
             sys.exit(1)
         elif opt in ("-i"):
             input_directory=arg
         elif opt in ("-m"):
             model_name=arg
-        elif opt in ("-t"):
-            num_cpus=arg
-    features_train = glob.glob(input_directory+'/*pkl')
-    psm_train = []
-    for name in features_train:
-        psm_train.append(name.replace('spectra_features/', 'feature_PSMs/').replace('.pkl', '.tsv'))
-    features_test = glob.glob('spectra_features/test/*pkl')
-    psm_test = []
-    for name in features_test:
-        features_test.append(name.replace('ms2/', 'PSMs/').replace('.pkl', '.tsv'))
+        elif opt in ("-p"):
+            pretrained_model=arg
+    psms = sorted(glob.glob(input_directory+'/*tsv'))
+    features = sorted(glob.glob(input_directory+'/*pkl'))
     start = time.time()
-    L_train, Yweight_train = readData(features_train, psm_train)
-    X_test, yweight_test = readData(features_test, psm_test)
-    L_train = L_train
-    Yweight_train = Yweight_train
-    X_test = X_test
-    yweight_test = yweight_test
+    L, Yweight = readData(psms,features)
+    X_train, X_test, yweight_train, yweight_test= train_test_split(L, Yweight, test_size=0.1,random_state=10)
+    X_train, X_val, yweight_train, yweight_val = train_test_split(X_train, yweight_train, test_size=0.1,random_state=10)
     end = time.time()
     print('loading data: ' + str(end - start))
-    X_train, X_val, yweight_train, yweight_val = train_test_split(L_train, Yweight_train, test_size=0.1,
-                                                                  random_state=10)
     print("length of training data: " + str(len(X_train)))
     print("length of validation data: " + str(len(X_val)))
     print("length of test data: " + str(len(X_test)))
-    train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name)
+    train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test, model_name, pretrained_model)
     print('done')
