@@ -313,7 +313,7 @@ def cometToDict(filename):
 
         Proteins = []
         for pidx in range(27, length):
-            if s[pidx] is not '':
+            if s[pidx] != '':
                 Proteins.append(s[pidx])
                 if pidx==27:
                     continue
@@ -553,7 +553,7 @@ def readPercolatorData():
 
         Proteins = []
         for pidx in range(5, length):
-            if s[pidx] is not '':
+            if s[pidx] != '':
                 Proteins.append(s[pidx])
                 if pidx == 5:
                     continue
@@ -569,6 +569,46 @@ def readPercolatorData():
         PSMs.append(
             PSM(filename, int(file_id), int(scan), int(charge),int(rank), 0.0, 0.0,0.0,float(s[1]), PTM_score, IdentifyPeptide, PSM_Label, Proteins,Proteinname,ProteinCount))
     return PSMs
+
+def readWinnowNetData(singlefile,rescore):
+    PSMs = []
+    rescores = []
+    with open(rescore) as f:
+        for line in f:
+            rescores.append(float(line.strip()))
+    f = open(singlefile)
+    for line_id, line in enumerate(f):
+        s = line.strip().split('\t')
+        length = len(s)
+        string = s[0].split('_')
+        filename = '_'.join(string[:-3])
+        file_id = filename
+        scan = str(int(string[-3]))
+        charge = str(int(string[-2]))
+        rank = str(int(string[-1]))
+
+        IdentifyPeptide = s[1]
+        PTM_score = IdentifyPeptide.count('~')
+
+        Proteinname = s[2]
+        ProteinCount = 0
+
+        Proteins = []
+        for pidx in range(2, length):
+            if s[pidx]!='':
+                Proteins.append(s[pidx])
+                if pidx == 2:
+                    continue
+                Proteinname += ',' + s[pidx]
+        PSM_Label = False
+        for protein in Proteins:
+            if decoy_prefix not in protein:
+                ProteinCount += 1
+                PSM_Label = True
+                break
+        PSMs.append(PSM(filename, file_id, int(scan), int(charge),int(rank), 0.0, 0.0,0.0,float(rescores[line_id]), PTM_score, IdentifyPeptide, PSM_Label, Proteins,Proteinname,ProteinCount))
+    return PSMs
+
 
 
 def readCometData():
@@ -606,7 +646,7 @@ def readCometData():
             ProteinCount = 0
             Proteins = []
             for pidx in range(0, len(pro)):
-                if pro[pidx] is not '':
+                if pro[pidx] != '':
                     Proteins.append(pro[pidx])
             PSM_Label = False
             for protein in Proteins:
@@ -623,8 +663,8 @@ def readCometData():
 
 def read_iprophet(input_file, mix_version=False):
     PSMs=[]
-    C_pattern = re.compile('C\[160\]')
-    M_pattern = re.compile('M\[147\]')
+    C_pattern = re.compile(r'C\[160\]')
+    M_pattern = re.compile(r'M\[147\]')
     clean_pattern = re.compile('[">/]')
     scan_id = 0
     charge_id = ''
@@ -731,8 +771,8 @@ def read_iprophet(input_file, mix_version=False):
 
 def read_prophet(input_file, mix_version=False):
     PSMs=[]
-    C_pattern = re.compile('C\[160\]')
-    M_pattern = re.compile('M\[147\]')
+    C_pattern = re.compile(r'C\[160\]')
+    M_pattern = re.compile(r'M\[147\]')
     clean_pattern = re.compile('[">/]')
     scan_id = 0
     charge_id = ''
@@ -840,35 +880,55 @@ def read_prophet(input_file, mix_version=False):
 
 
 if __name__ == "__main__":
+    argv=sys.argv[1:]
+    try:
+        opts, args = getopt.getopt(argv, "hi:p:d:o:f:")
+    except:
+        print("Error Option, using -h for help information.")
+        sys.exit(1)
+    if len(opts)==0:
+        print("\n\nUsage:\n")
+        print("-i\t Re-score results by WinnowNet\n")
+        print("-p\t Original PSM file\n")
+        print("-d\t Decoy Prefix used for target-decoy strategy\n")
+        print("-o\t Prefix of filtered result at user-defined FDR at PSM and peptide level\n")
+        print("-f\t FDR. Default: 0.01")
+        sys.exit(1)
+        start_time=time.time()
+    input_file=""
+    PSM_file=""
+    filtered_prefix=""
+    fdr=0.01
+    for opt, arg in opts:
+        if opt in ("-h"):
+            print("\n\nUsage:\n")
+            print("-i\t Re-score results by WinnowNet\n")
+            print("-p\t Original PSM file\n")
+            print("-d\t Decoy Prefix used for target-decoy strategy\n")
+            print("-o\t Prefix of filtered result at user-defined FDR at PSM and peptide level\n")
+            print("-f\t FDR. Default: 0.01")
+            sys.exit(1)
+        elif opt in ("-i"):
+            input_file=arg
+        elif opt in ("-p"):
+            PSM_file=arg
+        elif opt in ("-d"):
+            decoy_prefix=arg
+        elif opt in ("-o"):
+            filtered_prefix=arg
+        elif opt in ("-f"):
+            fdr=float(arg)
 
-
-    PSMs = readData(sys.argv[1],sys.argv[2])
-    outputpsm=sys.argv[3]
-    outputpep=sys.argv[4]
-    #PSMs = readPercolatorData()
-    #PSMs = readqrankerData()
-    #PSMs=readCometData()
-    #PSMs=read_iprophet('marine3_iprophet_NON.xml')
-    #PSMs=read_prophet('marine3_iprophet.xml')
+    PSMs = readWinnowNetData(PSM_file,input_file)
     print(len(PSMs))
     psm_list = sorted(PSMs, key=lambda psm: (psm.rescore, psm.Massdiff, psm.PTM_score), reverse=True)
     rank_list = re_rank(PSMs)
 
     print(len(rank_list))
-    fdr_list=[0.002,0.004,0.006,0.008,0.01,0.015,0.02,0.025,0.03,0.035,0.04,0.045,0.05,0.055,0.06,0.065,0.07,0.075,0.08,0.085,0.09,0.095,0.1]
-    '''
-    fw=open('fdr.csv','w')
-    for fdr in fdr_list:
-        filter_list = show_Fdr(rank_list, fdr)
-        print('psm:' +str(fdr)+':'+ str(len(filter_list)))
-        fw.write(str(len(filter_list)))
-        fw.write(',')
-    fw.write('\n')
-    '''
-    filter_list = show_Fdr(rank_list, 0.01)
+    filter_list = show_Fdr(rank_list, fdr)
     print('psm:' + str(len(filter_list)))
     
-    with open(outputpsm, 'w') as f:
+    with open(filtered_prefix+'.psm.txt', 'w') as f:
         psm_out_list = ['Filename',  # 0
                     'ScanNumber',  # 1
                     'ParentCharge',  # 2
@@ -896,21 +956,11 @@ if __name__ == "__main__":
                 TargetMatch = 'T'
             f.write(str(psm.filename)+ '\t' + str(psm.scan) + '\t' + str(psm.ParentCharge)+'\t'+str(psm.MeasuredParentMass)+'\t'+str(psm.CalculatedParentMass)+'\t'+str(psm.Massdiff)+'\t'+str(psm.MassErrorPPM)+'\t'+str(psm.ScanType)+'\t'+str(psm.SearchName)+'\t'+str(psm.ScoringFunction)+'\t'+str(psm.rescore)+'\t'+str(psm.DeltaZ)+'\t'+str(psm.DeltaP)+'\t'+ str(psm.IdentifiedPeptide) + '\t' +str(psm.OriginalPeptide)+'\t'+str(psm.Proteinname)+'\t'+ str(psm.ProteinCount)+'\t'+TargetMatch + '\n')
 
-    '''
-    for fdr in fdr_list:
-        filter_pep_list = show_Fdr_Pep(rank_list, fdr)
-        print('pep:' + str(fdr)+':'+ str(len(filter_pep_list)))
-        fw.write(str(len(filter_pep_list)))
-        fw.write(',')
-    fw.write('\n')
-    fw.close()
-    '''
 
-    
-    filter_pep_list = show_Fdr_Pep(rank_list, 0.01)
+    filter_pep_list = show_Fdr_Pep(rank_list, fdr)
     print('pep:' + str(len(filter_pep_list)))
     
-    with open(outputpep, 'w') as f:
+    with open(filtered_prefix+'.pep.txt', 'w') as f:
         pep_out_list = ['IdentifiedPeptide',    #0
                     'ParentCharge',         #1
                     'OriginalPeptide',      #2
