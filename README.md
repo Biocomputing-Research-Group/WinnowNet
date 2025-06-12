@@ -1,5 +1,6 @@
 # WinnowNet
-Note: This algorithm was implemented and tested on Ubuntu 20.04.6 LTS (GNU/Linux 5.15.0-84-generic, x86_64).
+This algorithm was implemented and tested on Ubuntu 20.04.6 LTS (GNU/Linux 5.15.0-84-generic, x86_64).
+## Note: This repository contains the development version of WinnowNet. For the code used to reproduce the experiments in the paper, please refer to the following repository: https://github.com/Biocomputing-Research-Group/WinnowNet4Review
 ## Overview
 WinnowNet is designed for advanced processing of mass spectrometry data with two core methods: a CNN-based approach and a self-attention-based approach. The repository includes scripts for feature extraction, model training, prediction (inference), and evaluation. A toy example is included to help users get started.
 
@@ -56,22 +57,80 @@ python SpectraFeatures.py -i <tsv_file> -s <ms2_file> -o spectra.pkl -t 48 -f cn
 * The `-t 48` option sets the number of threads (adjust this value as needed).
 * Use `-f cnn` when preparing input for the CNN-based architecture or -f att for the self-attention-based model.
 
-## Training
-### CNN-based WinnowNet
-Train the CNN-based model using the extracted spectrum features:
-```bash
-python WinnowNet_CNN.py -i spectra.pkl -m cnn_pytorch.pt
-```
-* `-i spectra.pkl` specifies the input file containing extracted features.
-* `-m cnn_pytorch.pt` indicates the file path to save (or load) the trained CNN model.
+## Training WinnowNet Models
 
-### Self-Attention-based WinnowNet
-Train the self-attention model similarly:
+This folder contains scripts, datasets, and instructions for training two variants of the WinnowNet deep learning model: a self-attention-based model and a CNN-based model. Training is carried out in two phases to enable curriculum learning from synthetic (easy) to real-world metaproteomic (difficult) datasets.
+
+## Requirements
+
+- Python 3.7+
+- PyTorch
+- NumPy, Pandas, scikit-learn
+
+### Datasets
+
+- **Prosit_train.zip** (Phase 1 training set):   https://figshare.com/articles/dataset/Datasets/25511770?file=55257041
+- **marine1_train.zip** (Phase 2 training set): https://figshare.com/articles/dataset/Datasets/25511770?file=55257035
+
+---
+
+### Self-Attention-Based WinnowNet
+
+#### Phase 1: Training on Easy Tasks (Synthetic Data)
+
 ```bash
-python WinnowNet_Att.py -i spectra.pkl -m att_pytorch.pt
+python SpectraFeatures_training.py -i filename.tsv -s filename.ms2 -o spectra_feature.pkl -t 20 -f att
+python WinnowNet_Att.py -i spectra_feature_directory -m prosit_att.pt
 ```
-* `-i spectra.pkl` specifies the input file containing extracted features.
-* `-m att_pytorch.pt` indicates the file path to save (or load) the trained self-attention model.
+
+**Explanation of options:**
+- `-i`: Input tab-delimited file with PSMs, including labels and weights.
+- `-s`: Corresponding MS2 file (filename should match TSV).
+- `-o`: Output file to store extracted features as a `pkl` file.
+- `-t`: Number of threads for parallel processing.
+- `-f`: Feature type (`att` for self-attention model).
+- `-m`: Filename to save the trained model.
+- A for-loop is needed to convert all `tsv` files to `pkl` files.
+
+#### Phase 2: Training on Difficult Tasks (Real Data)
+
+```bash
+python SpectraFeatures_training.py -i filename.tsv -s filename.ms2 -o spectra_feature.pkl -t 20 -f att
+python WinnowNet_Att.py -i spectra_feature_directory -m marine_att.pt -p prosit_att.pt
+```
+
+- `-p`: Pre-trained model from Phase 1.
+- A for-loop is needed to convert all `tsv` files to `pkl` files.
+
+**Pre-trained model:** marine_att.pt,  https://figshare.com/articles/dataset/Models/25513531
+
+---
+
+### CNN-Based WinnowNet
+
+#### Phase 1: Training on Easy Tasks (Synthetic Data)
+
+```bash
+python SpectraFeatures_training.py -i filename.tsv -s filename.ms2 -o spectra_feature.pkl -t 20 -f cnn
+python WinnowNet_CNN.py -i spectra_feature_directory -m prosit_cnn.pt
+```
+
+#### Phase 2: Training on Difficult Tasks (Real Data)
+
+```bash
+python SpectraFeatures_training.py -i filename.tsv -s filename.ms2 -o spectra_feature.pkl -t 20 -f cnn
+python WinnowNet_CNN.py -i spectra_feature_directory -m cnn_pytorch.pt -p prosit_cnn.pt
+```
+
+**Pre-trained model:** cnn_pytorch.pt, https://figshare.com/articles/dataset/Models/25513531
+
+---
+
+### Notes
+
+- All input MS2/TSV files must be preprocessed properly.
+- Models trained in Phase 1 are reused to initialize weights in Phase 2.
+- Training with GPU is recommended for performance.
 
 ## Inference
 ### PSM Rescoring
