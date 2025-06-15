@@ -333,6 +333,7 @@ if __name__ == "__main__":
     print('Features generated!')
     subprocess.run('rm '+theoretical_file, shell=True, executable="/bin/bash")
     return_dict=dict(return_dict)
+    return_dict = { k: return_dict[k] for k in D_feature.keys() }
     with open(output_file,'wb') as f:
         pickle.dump(return_dict,f)
     print('time:'+str(time.time()-start_time))

@@ -30,7 +30,7 @@ sipros4_input = None
 
 # defaul value
 decoy_prefix = 'Rev_'
-min_peptide_per_protein = 2
+min_peptide_per_protein = 1
 min_unique_peptide_per_protein = 1
 remove_decoy_identification = 'No'
 
@@ -268,92 +268,97 @@ def re_rank(psm_list, consider_charge_bool=False):
     return psm_new_list
 
 
-def cometToDict(filename):
+def cometToDict():
     cometdict = dict()
-    fp = open(filename)
-    for line_id, line in enumerate(fp):
-        if line_id == 0:
-            continue
-        s = line.strip().split('\t')
-        length = len(s)
-        idx = s[0]
-        string = idx.split('_')
-            
-        filename='{0}_{1}_{2}_{3}_{4}_{5}.{6}'.format(string[0], string[1], string[2], string[3],string[4],string[5],'ms2')
-        file_id = str(int(string[-4]))
-        scan = str(int(string[-3]))
-        charge = str(int(string[-2]))
-        rank = str(int(string[-1]))
-        '''
-        filename='{0}_{1}.{2}'.format(string[0], string[1],'ms2')
-        file_id = str(int(string[1]))
-        scan = str(int(string[2]))
-        charge = str(int(string[3]))
-        rank = str(int(string[4]))
-            
-        filename = '{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}.{9}'.format(string[0], string[1], string[2], string[3], string[4],string[5],string[6], string[7], string[8], string[9],'ms2')
-        if int(string[8].replace('Run','')) == 1:
-            file_id=str(int(string[9]))
+    for i in range(1, 23):
+        if i<10:
+            fp = open('comet/soil3/soil3_' + str(i) + '.pin')
         else:
-            file_id=str(int(string[9])+11)
-        scan = str(int(string[10]))
-        charge = str(int(string[11]))
-        rank = str(int(string[12]))
-        '''
+            fp = open('comet/soil3/soil3_' + str(i) + '.pin')
+        for line_id, line in enumerate(fp):
+            if line_id == 0:
+                continue
+            s = line.strip().split('\t')
+            length = len(s)
+            idx = s[0]
+            string = idx.split('_')
+            '''
+            filename='{0}_{1}_{2}_{3}_{4}_{5}.{6}'.format(string[0], string[1], string[2], string[3],string[4],string[5],'ms2')
+            file_id = str(int(string[5]))
+            scan = str(int(string[6]))
+            charge = str(int(string[7]))
+            rank = str(int(string[8]))
+            '''
+            filename='{0}_{1}.{2}'.format(string[0], string[1],'ms2')
+            file_id = str(int(string[1]))
+            scan = str(int(string[2]))
+            charge = str(int(string[3]))
+            rank = str(int(string[4]))
+            '''
+            filename = '{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}.{9}'.format(string[0], string[1], string[2], string[3], string[4],string[5],string[6], string[7], string[8], string[9],'ms2')
+            if int(string[8].replace('Run','')) == 1:
+                file_id=str(int(string[9]))
+            else:
+                file_id=str(int(string[9])+11)
+            scan = str(int(string[10]))
+            charge = str(int(string[11]))
+            rank = str(int(string[12]))
+            '''
+            idx = '{0}_{1}_{2}_{3}'.format(file_id, scan, charge, rank)
+            MeasuredParentMass=float(s[3])
+            CalculatedParentMass=float(s[4])
+            MassDiff = abs(float(s[4]) - float(s[3]))
+            IdentifyPeptide = s[26].replace('[15.9949]', '~').split('.')[1]
+            PTM_score = IdentifyPeptide.count('~')
+            Xcorr = float(s[9])
+            Proteinname=s[27]
+            ProteinCount=0
 
-        idx = '{0}_{1}_{2}_{3}'.format(file_id, scan, charge, rank)
-        MeasuredParentMass=float(s[3])
-        CalculatedParentMass=float(s[4])
-        MassDiff = abs(float(s[4]) - float(s[3]))
-        IdentifyPeptide = s[26].replace('[15.9949]', '~').split('.')[1]
-        PTM_score = IdentifyPeptide.count('~')
-        Xcorr = float(s[9])
-        Proteinname=s[27]
-        ProteinCount=0
+            Proteins = []
+            for pidx in range(27, length):
+                if s[pidx] is not '':
+                    Proteins.append(s[pidx])
+                    if pidx==27:
+                        continue
+                    Proteinname+=','+s[pidx]
+            PSM_Label = False
+            for protein in Proteins:
+                if 'Rev' not in protein:
+                    ProteinCount+=1
+                    PSM_Label = True
+                    break
 
-        Proteins = []
-        for pidx in range(27, length):
-            if s[pidx] != '':
-                Proteins.append(s[pidx])
-                if pidx==27:
-                    continue
-                Proteinname+=','+s[pidx]
-        PSM_Label = False
-        for protein in Proteins:
-            if 'Rev' not in protein:
-                ProteinCount+=1
-                PSM_Label = True
-                break
-
-        cometdict[idx] = [filename,file_id, scan, charge, rank, MeasuredParentMass,CalculatedParentMass, MassDiff, Xcorr, PTM_score, IdentifyPeptide, PSM_Label,
+            cometdict[idx] = [filename,file_id, scan, charge, rank, MeasuredParentMass,CalculatedParentMass, MassDiff, Xcorr, PTM_score, IdentifyPeptide, PSM_Label,
                               Proteins,Proteinname,ProteinCount]
 
-    fp.close()
+        fp.close()
 
     return cometdict
 
 
-def readData(filename,filename2):
-    cometdic = cometToDict(filename2)
+def readData():
+    cometdic = cometToDict()
     PSMs = []
-    f = open(filename)
-    for line_id,line in enumerate(f):
-        line = line.strip().split(':')
-        if line[0] in cometdic.keys():
-            scan = cometdic[line[0]]
-            PSMs.append(PSM(scan[0], int(scan[1]), int(scan[2]), int(scan[3]), int(scan[4]), float(scan[5]),float(scan[6]),float(scan[7]),float(line[1]),int(scan[9]), scan[10], scan[11], scan[12],scan[13],scan[14]))
+    for i in range(1, 23):
+        f = open('result/soil3/prob_'+str(i)+'.txt')
+        for line in f:
+            line = line.strip().split(':')
+            if line[0] in cometdic.keys():
+                scan = cometdic[line[0]]
+                PSMs.append(PSM(scan[0], int(scan[1]), int(scan[2]), int(scan[3]), int(scan[4]), float(scan[5]),float(scan[6]),float(scan[7]),float(line[1]),
+                                int(scan[9]), scan[10], scan[11], scan[12],scan[13],scan[14]))
 
-    f.close()
+        f.close()
 
     return PSMs
 
-'''
+
 def readqrankerData():
     PSMs = []
-    for i in range(1,23):
+    for i in range(1,6):
         #f = open('./qranker/marine3/marine3_' + str(i) + '.csv')
-        #f = open('crux-output/soil3_p'+str(i)+'_qranker.txt')
-        f = open('./qranker/ecoli/ecoli_' + str(i) + '.csv')
+        f = open('crux-output/soil1_p'+str(i)+'_qranker.txt')
+        #f = open('./qranker/ecoli/ecoli_' + str(i) + '.csv')
         for line_id, line in enumerate(f):
             if line_id==0:
                 continue
@@ -430,7 +435,7 @@ def readqrankerData():
 
     return PSMs
 
-'''
+
 
 
 def readqrankerData():
@@ -505,124 +510,60 @@ def readqrankerData():
 '''
 
 
-def readPercolatorData():
+def readPercolatorData(singlefile):
     PSMs = []
-    f = open('percolator/OSU1.csv')
-    for line_id, line in enumerate(f):
-        if line_id == 0:
-            continue
-        s = line.strip().split('\t')
-        length = len(s)
-        idx = s[0].split('_')
-        '''
-        string = idx
-        filename = '{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}.{9}'.format(string[0], string[1], string[2], string[3], string[4],string[5],string[6], string[7], string[8], string[9],'ms2')
-        
-        if int(string[8].replace('Run','')) == 1:
-            file_id=str(int(string[9]))
-        else:
-            file_id=str(int(string[9])+11)
-        scan = str(int(string[10]))
-        charge = str(int(string[11]))
-        rank = str(int(string[12]))
-        '''
-        '''
-        string = idx
-        filename = '{0}_{1}_{2}_{3}_{4}_{5}.{6}'.format(string[0], string[1], string[2], string[3], string[4],string[5], 'ms2')
-        file_id = str(int(string[5]))
-        scan = str(int(string[6]))
-        charge = str(int(string[7]))
-        rank = str(int(string[8]))
-        
-        '''
-        string = idx
-        filename = '{0}_{1}.{2}'.format(string[0], string[1], 'ms2')
-        file_id = str(int(string[1]))
-        i=int(file_id)
+    files=[singlefile]
+    for file in files:
+        f = open(file)
+        for line_id, line in enumerate(f):
+            if line_id == 0:
+                continue
+            s = line.strip().split('\t')
+            length = len(s)
 
-        scan = str(int(string[2]))
-        charge = str(int(string[3]))
-        rank = str(int(string[4]))
-        
-        idx = '{0}_{1}_{2}_{3}'.format(file_id, scan, charge, rank)
-        IdentifyPeptide = s[4].replace('[15.9949]', '~').split('.')[1]
-        PTM_score = IdentifyPeptide.count('~')
+            string = s[0].split('_')
+            filename = '_'.join(string[:-3])
+            file_id = filename
+            scan = str(int(string[-3]))
+            charge = str(int(string[-2]))
+            rank = str(int(string[-1]))
 
-        Proteinname = s[5]
-        ProteinCount = 0
+            IdentifyPeptide = s[4].replace('[15.9949]','~')
+            PTM_score = IdentifyPeptide.count('~')
 
-        Proteins = []
-        for pidx in range(5, length):
-            if s[pidx] != '':
-                Proteins.append(s[pidx])
-                if pidx == 5:
-                    continue
-                Proteinname += ',' + s[pidx]
-        PSM_Label = False
-        for protein in Proteins:
-            if 'Rev' not in protein:
-                ProteinCount += 1
-                PSM_Label = True
-                break
+            Proteinname = s[5]
+            ProteinCount = 0
+
+            Proteins = []
+            for pidx in range(5, length):
+                if s[pidx] is not '':
+                    Proteins.append(s[pidx])
+                    if pidx == 5:
+                        continue
+                    Proteinname += ',' + s[pidx]
+            PSM_Label = False
+            for protein in Proteins:
+                if 'Rev' not in protein:
+                    ProteinCount += 1
+                    PSM_Label = True
+                    break
 
 
-        PSMs.append(
-            PSM(filename, int(file_id), int(scan), int(charge),int(rank), 0.0, 0.0,0.0,float(s[1]), PTM_score, IdentifyPeptide, PSM_Label, Proteins,Proteinname,ProteinCount))
+            PSMs.append(PSM(filename, file_id, int(scan), int(charge),int(rank), 0.0, 0.0,0.0,-float(s[2]), PTM_score, IdentifyPeptide, PSM_Label, Proteins,Proteinname,ProteinCount))
     return PSMs
-
-def readWinnowNetData(singlefile,rescore):
-    PSMs = []
-    rescores = []
-    with open(rescore) as f:
-        for line in f:
-            rescores.append(float(line.strip()))
-    f = open(singlefile)
-    for line_id, line in enumerate(f):
-        s = line.strip().split('\t')
-        length = len(s)
-        string = s[0].split('_')
-        filename = '_'.join(string[:-3])
-        file_id = filename
-        scan = str(int(string[-3]))
-        charge = str(int(string[-2]))
-        rank = str(int(string[-1]))
-        if rank!='1':
-            continue
-        IdentifyPeptide = s[1]
-        PTM_score = IdentifyPeptide.count('~')
-
-        Proteinname = s[2]
-        ProteinCount = 0
-
-        Proteins = []
-        for pidx in range(2, length):
-            if s[pidx]!='':
-                Proteins.append(s[pidx])
-                if pidx == 2:
-                    continue
-                Proteinname += ',' + s[pidx]
-        PSM_Label = False
-        for protein in Proteins:
-            if decoy_prefix not in protein:
-                ProteinCount += 1
-                PSM_Label = True
-                break
-        PSMs.append(PSM(filename, file_id, int(scan), int(charge),int(rank), 0.0, 0.0,0.0,float(rescores[line_id]), PTM_score, IdentifyPeptide, PSM_Label, Proteins,Proteinname,ProteinCount))
-    return PSMs
-
 
 
 def readCometData():
-    cometdic = cometToDict()
+    #cometdic = cometToDict()
     PSMs = []
-    for i in range(1, 12):
-        
+    for i in range(1, 23):
+        '''
         if i < 10:
-            fp = open('comet/marine3/OSU_D7_FASP_Elite_03172014_0'+str(i)+'.txt')
+            fp = open('comet/soil1/soil1_'+str(i)+'.txt')
         else:
             fp = open('comet/marine3/OSU_D7_FASP_Elite_03172014_'+str(i)+'.txt')
-        
-        #fp = open('comet/soil3/soil3_' + str(i) + '.txt')
+        '''
+        fp = open('comet/soil2/soil2_' + str(i) + '.txt')
         
         filename = fp.name
         for line_id, line in enumerate(fp):
@@ -647,7 +588,7 @@ def readCometData():
             ProteinCount = 0
             Proteins = []
             for pidx in range(0, len(pro)):
-                if pro[pidx] != '':
+                if pro[pidx] is not '':
                     Proteins.append(pro[pidx])
             PSM_Label = False
             for protein in Proteins:
@@ -664,8 +605,8 @@ def readCometData():
 
 def read_iprophet(input_file, mix_version=False):
     PSMs=[]
-    C_pattern = re.compile(r'C\[160\]')
-    M_pattern = re.compile(r'M\[147\]')
+    C_pattern = re.compile('C\[160\]')
+    M_pattern = re.compile('M\[147\]')
     clean_pattern = re.compile('[">/]')
     scan_id = 0
     charge_id = ''
@@ -772,8 +713,8 @@ def read_iprophet(input_file, mix_version=False):
 
 def read_prophet(input_file, mix_version=False):
     PSMs=[]
-    C_pattern = re.compile(r'C\[160\]')
-    M_pattern = re.compile(r'M\[147\]')
+    C_pattern = re.compile('C\[160\]')
+    M_pattern = re.compile('M\[147\]')
     clean_pattern = re.compile('[">/]')
     scan_id = 0
     charge_id = ''
@@ -794,10 +735,13 @@ def read_prophet(input_file, mix_version=False):
                         split_l_2 = one.split('=')
                         filename=split_l_2[-1].split('.')[0].replace('"','')+'.ms2'
                         prefix=split_l_2[-1].split('.')[0].split('_')
+                        '''
                         if int(prefix[-2].replace('Run',''))==1:
                             file_id=int(prefix[-1])
                         else:
                             file_id=int(prefix[-1])+11
+                        '''
+                        file_id=prefix[-1].replace('soil','')
                     if one.startswith('start_scan='):
                         split_l_2 = one.split('=')
                         scan_id = int(clean_pattern.sub('', split_l_2[-1]))
@@ -878,49 +822,96 @@ def read_prophet(input_file, mix_version=False):
 
     return PSMs
 
+def read_comet_txt(filename):
+    PSMs=[]
+    with open(filename) as f:
+        for line_id,line in enumerate(f):
+            if line_id<2:
+                continue
+            s = line.strip().split('\t')
+            file_id=filename.split('.')[0]
+            scan=int(s[0])
+            rank=int(s[1])
+            charge=int(s[2])
+            length = len(s)
+            MeasuredParentMass=float(s[3])
+            CalculatedParentMass=float(s[4])
+            Massdiff = abs(float(s[3]) - float(s[4]))
+            rescore = float(s[5])
+            IdentifyPeptide = s[12].replace('[15.9949]', '~').split('.')[1]
+            PTM_score = IdentifyPeptide.count('~')
+            Proteinname=s[15]
+            pro = s[15].strip().split(',')
+            ProteinCount = 0
+            Proteins = []
+            for pidx in range(0, len(pro)):
+                if pro[pidx] is not '':
+                    Proteins.append(pro[pidx])
+            PSM_Label = False
+            for protein in Proteins:
+                if 'Rev' not in protein:
+                    ProteinCount += 1
+                    PSM_Label = True
+                    break
+            PSMs.append(
+                PSM(filename, file_id, scan, charge, rank, MeasuredParentMass, CalculatedParentMass, Massdiff, -rescore,
+                    PTM_score, IdentifyPeptide, PSM_Label,
+                    Proteins, Proteinname, ProteinCount))
+
+    return PSMs
+
+def read_msgf_pin(filename):
+    PSMs=[]
+    with open(filename) as f:
+        for line_id,line in enumerate(f):
+            if line_id<1:
+                continue
+            s = line.strip().split('\t')
+            specid=s[0].split('.')
+            file_id=filename.split('.')[0]
+            scan=int(s[0])
+            rank=int(s[1])
+            charge=int(s[2])
+            length = len(s)
+            MeasuredParentMass=float(s[3])
+            CalculatedParentMass=float(s[4])
+            Massdiff = abs(float(s[3]) - float(s[4]))
+            rescore = float(s[5])
+            IdentifyPeptide = s[12].replace('[15.9949]', '~').split('.')[1]
+            PTM_score = IdentifyPeptide.count('~')
+            Proteinname=s[15]
+            pro = s[15].strip().split(',')
+            ProteinCount = 0
+            Proteins = []
+            for pidx in range(0, len(pro)):
+                if pro[pidx] is not '':
+                    Proteins.append(pro[pidx])
+            PSM_Label = False
+            for protein in Proteins:
+                if 'Rev' not in protein:
+                    ProteinCount += 1
+                    PSM_Label = True
+                    break
+            PSMs.append(
+                PSM(filename, file_id, scan, charge, rank, MeasuredParentMass, CalculatedParentMass, Massdiff, -rescore,
+                    PTM_score, IdentifyPeptide, PSM_Label,
+                    Proteins, Proteinname, ProteinCount))
+
+    return PSMs
 
 
 if __name__ == "__main__":
-    argv=sys.argv[1:]
-    try:
-        opts, args = getopt.getopt(argv, "hi:p:d:o:f:")
-    except:
-        print("Error Option, using -h for help information.")
-        sys.exit(1)
-    if len(opts)==0:
-        print("\n\nUsage:\n")
-        print("-i\t Re-score results by WinnowNet\n")
-        print("-p\t Original PSM file\n")
-        print("-d\t Decoy Prefix used for target-decoy strategy\n")
-        print("-o\t Prefix of filtered result at user-defined FDR at PSM and peptide level\n")
-        print("-f\t FDR. Default: 0.01")
-        sys.exit(1)
-        start_time=time.time()
-    input_file=""
-    PSM_file=""
-    filtered_prefix=""
-    fdr=0.01
-    for opt, arg in opts:
-        if opt in ("-h"):
-            print("\n\nUsage:\n")
-            print("-i\t Re-score results by WinnowNet\n")
-            print("-p\t Original PSM file\n")
-            print("-d\t Decoy Prefix used for target-decoy strategy\n")
-            print("-o\t Prefix of filtered result at user-defined FDR at PSM and peptide level\n")
-            print("-f\t FDR. Default: 0.01")
-            sys.exit(1)
-        elif opt in ("-i"):
-            input_file=arg
-        elif opt in ("-p"):
-            PSM_file=arg
-        elif opt in ("-d"):
-            decoy_prefix=arg
-        elif opt in ("-o"):
-            filtered_prefix=arg
-        elif opt in ("-f"):
-            fdr=float(arg)
 
-    PSMs = readWinnowNetData(PSM_file,input_file)
+    singlefile=sys.argv[1]
+    fdr=float(sys.argv[2])
+    prefix=singlefile.split('.')[0]
+    #PSMs=read_comet_txt(filename)
+    #PSMs = readData()
+    PSMs = readPercolatorData(singlefile)
+    #PSMs = readqrankerData()
+    #PSMs=readCometData()
+    #PSMs=read_iprophet('marine3_iprophet_NON.xml')
+    #PSMs=read_prophet('soil2_iprophet_result.xml')
     print(len(PSMs))
     psm_list = sorted(PSMs, key=lambda psm: (psm.rescore, psm.Massdiff, psm.PTM_score), reverse=True)
     rank_list = re_rank(PSMs)
@@ -929,7 +920,7 @@ if __name__ == "__main__":
     filter_list = show_Fdr(rank_list, fdr)
     print('psm:' + str(len(filter_list)))
     
-    with open(filtered_prefix+'.psm.txt', 'w') as f:
+    with open(prefix+'.psm.txt', 'w') as f:
         psm_out_list = ['Filename',  # 0
                     'ScanNumber',  # 1
                     'ParentCharge',  # 2
@@ -955,13 +946,23 @@ if __name__ == "__main__":
             TargetMatch = 'F'
             if psm.PSM_Label == True:
                 TargetMatch = 'T'
-            f.write(str(psm.filename)+ '\t' + str(psm.scan) + '\t' + str(psm.ParentCharge)+'\t'+str(psm.MeasuredParentMass)+'\t'+str(psm.CalculatedParentMass)+'\t'+str(psm.Massdiff)+'\t'+str(psm.MassErrorPPM)+'\t'+str(psm.ScanType)+'\t'+str(psm.SearchName)+'\t'+str(psm.ScoringFunction)+'\t'+str(psm.rescore)+'\t'+str(psm.DeltaZ)+'\t'+str(psm.DeltaP)+'\t'+ str(psm.IdentifiedPeptide) + '\t' +str(psm.OriginalPeptide)+'\t'+str(psm.Proteinname)+'\t'+ str(psm.ProteinCount)+'\t'+TargetMatch + '\n')
+            f.write(str(psm.filename)+ '\t' + str(psm.scan) + '\t' + str(psm.ParentCharge)+'\t'+str(psm.MeasuredParentMass)+'\t'+str(psm.CalculatedParentMass)+'\t'+str(psm.Massdiff)+'\t'+str(psm.MassErrorPPM)+'\t'+str(psm.ScanType)+'\t'+str(psm.SearchName)+'\t'+str(psm.ScoringFunction)+'\t'+str(-psm.rescore)+'\t'+str(psm.DeltaZ)+'\t'+str(psm.DeltaP)+'\t'+ str(psm.IdentifiedPeptide) + '\t' +str(psm.OriginalPeptide)+'\t'+str(psm.Proteinname)+'\t'+ str(psm.ProteinCount)+'\t'+TargetMatch + '\n')
 
+    '''
+    for fdr in fdr_list:
+        filter_pep_list = show_Fdr_Pep(rank_list, fdr)
+        print('pep:' + str(fdr)+':'+ str(len(filter_pep_list)))
+        fw.write(str(len(filter_pep_list)))
+        fw.write(',')
+    fw.write('\n')
+    fw.close()
+    '''
 
+    
     filter_pep_list = show_Fdr_Pep(rank_list, fdr)
     print('pep:' + str(len(filter_pep_list)))
     
-    with open(filtered_prefix+'.pep.txt', 'w') as f:
+    with open(prefix+'.pep.txt', 'w') as f:
         pep_out_list = ['IdentifiedPeptide',    #0
                     'ParentCharge',         #1
                     'OriginalPeptide',      #2
@@ -975,7 +976,7 @@ if __name__ == "__main__":
                     'SearchName']           #10
         f.write('\t'.join(pep_out_list) + '\n')
         for key, pep in filter_pep_list.items():
-            f.write(pep.IdentifiedPeptide+'\t'+str(pep.ParentCharge)+'\t'+pep.OriginalPeptide+'\t'+'{'+pep.ProteinNames+'}'+'\t'+str(pep.ProteinCount)+'\t'+pep.TargetMatch+'\t'+str(pep.SpectralCount)+'\t'+str(pep.BestScore)+'\t'+','.join(pep.PSMs)+'\t'+pep.ScanType+'\t'+pep.SearchName+ '\n')
+            f.write(pep.IdentifiedPeptide+'\t'+str(pep.ParentCharge)+'\t'+pep.OriginalPeptide+'\t'+'{'+pep.ProteinNames+'}'+'\t'+str(pep.ProteinCount)+'\t'+pep.TargetMatch+'\t'+str(pep.SpectralCount)+'\t'+str(-pep.BestScore)+'\t'+','.join(pep.PSMs)+'\t'+pep.ScanType+'\t'+pep.SearchName+ '\n')
 
 
 
