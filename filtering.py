@@ -586,7 +586,7 @@ def readWinnowNetData(singlefile,rescore):
         scan = str(int(string[-3]))
         charge = str(int(string[-2]))
         rank = str(int(string[-1]))
-        if rank!='1':
+        if str(int(string[-1]))!='1':
             continue
         IdentifyPeptide = s[1]
         PTM_score = IdentifyPeptide.count('~')
@@ -921,11 +921,9 @@ if __name__ == "__main__":
             fdr=float(arg)
 
     PSMs = readWinnowNetData(PSM_file,input_file)
-    print(len(PSMs))
     psm_list = sorted(PSMs, key=lambda psm: (psm.rescore, psm.Massdiff, psm.PTM_score), reverse=True)
     rank_list = re_rank(PSMs)
 
-    print(len(rank_list))
     filter_list = show_Fdr(rank_list, fdr)
     print('psm:' + str(len(filter_list)))
     

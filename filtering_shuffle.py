@@ -623,7 +623,7 @@ def readWinnowNetData(singlefile,rescore):
         scan = str(int(string[-3]))
         charge = str(int(string[-2]))
         rank = str(int(string[-1]))
-        if rank!='1':
+        if str(int(string[-1]))!='1':
             continue
         IdentifyPeptide = s[1]
         PTM_score = IdentifyPeptide.count('~')
