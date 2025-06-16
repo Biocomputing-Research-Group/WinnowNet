@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.autograd import Variable
+from torch.amp import autocast, GradScaler
 import torch.nn.functional as F
 import torch.utils.data as Data
 import time
@@ -15,7 +16,6 @@ import glob
 import pickle
 from components.encoders import MassEncoder, PeakEncoder, PositionalEncoder
 
-pairmaxlength=500
 threshold=0.9
 def LabelToDict(fp):
     sample = fp.read().strip().split('\n')
@@ -26,16 +26,16 @@ def LabelToDict(fp):
         qvalue = float(s[2])
         if s[0] == 'True':
             label = 1
-            label_dic[idx] = [1 - qvalue, label]
+            label_dic[idx] = [1, label]
         else:
             label = 0
-            label_dic[idx] = [(1-qvalue)/2, label]
+            label_dic[idx] = [0, label]
 
     fp.close()
     return label_dic
 
 
-def pad_control(data):
+def pad_control(data,pairmaxlength):
     data = sorted(data, key=lambda x: x[1], reverse=True)
     if len(data) > pairmaxlength:
         data = data[:pairmaxlength]
@@ -63,7 +63,7 @@ def readData(psms, features):
                 if D_Label[j][0]>threshold:
                     L.append(D_features[j])
                     Y = D_Label[j][1]
-                    weight = D_Label[j][0]
+                    weight = 1
                     positive+=1
                     Yweight.append([Y, weight])
             else:
@@ -88,8 +88,8 @@ class DefineDataset(Data.Dataset):
         return len(self.X)
 
     def __getitem__(self, idx):
-        xspectra1 = pad_control(self.X[idx][0])
-        xspectra2 = pad_control(self.X[idx][1])
+        xspectra1 = pad_control(self.X[idx][0],200)
+        xspectra2 = pad_control(self.X[idx][1],200)
         y = self.yweight[idx][0]
         weight = self.yweight[idx][1]
         xspectra1 = torch.FloatTensor(xspectra1)
@@ -120,7 +120,7 @@ class MS2Encoder(nn.Module):
         dim_feedforward: int,
         n_layers: int,
         dropout: float = 0.1,
-        max_len: int = 150
+        max_len: int = 200
     ):
         super().__init__()
         self.peak_encoder = PeakEncoder(
@@ -129,8 +129,6 @@ class MS2Encoder(nn.Module):
             min_wavelength=0.001,
             max_wavelength=7000,
         )
-        self.cls_token = nn.Parameter(torch.zeros(1, 1, dim_model))
-        self.pos_emb = nn.Parameter(torch.zeros(1, max_len+1, dim_model))
         layer = nn.TransformerEncoderLayer(
             d_model=dim_model,
             nhead=n_heads,
@@ -140,20 +138,12 @@ class MS2Encoder(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(layer, num_layers=n_layers)
 
-    def forward(self, spectra: torch.Tensor, mask: torch.Tensor=None):
+    def forward(self, spectra: torch.Tensor):
         B, P, _ = spectra.shape
-        x = self.peak_encoder(spectra) 
-        cls = self.cls_token.expand(B, -1, -1)
-        x = torch.cat([cls, x], dim=1)
-        x = x + self.pos_emb[:, : P+1, :]
-        if mask is not None:
-            cls_mask = torch.zeros(B, 1, dtype=torch.bool, device=mask.device)
-            attn_mask = torch.cat([cls_mask, mask == 0], dim=1)  # True=>ignore
-        else:
-            attn_mask = None
-        out = self.transformer(x, src_key_padding_mask=attn_mask)
-        spec_rep = out[:, 0, :]
-        return spec_rep
+        src_key_padding_mask = spectra.sum(dim=2) == 0
+        peaks = self.peak_encoder(spectra)
+        out = self.transformer(peaks, src_key_padding_mask=src_key_padding_mask)
+        return out
 
 class DualPeakClassifier(nn.Module):
     def __init__(
@@ -164,8 +154,8 @@ class DualPeakClassifier(nn.Module):
         dim_feedforward: int = 512,
         n_layers: int = 4,
         num_classes: int = 2,
-        dropout: float = 0.2,
-        max_len: int = 500,
+        dropout: float = 0.3,
+        max_len: int = 200,
     ):
         super().__init__()
         self.encoder1 = MS2Encoder(
@@ -180,11 +170,11 @@ class DualPeakClassifier(nn.Module):
         self,
         spectra1: torch.Tensor,
         spectra2: torch.Tensor,
-        mask1: torch.Tensor = None,
-        mask2: torch.Tensor = None,
     ):
-        rep1 = self.encoder1(spectra1, mask1)
-        rep2 = self.encoder2(spectra2, mask2)
+        out1 = self.encoder1(spectra1)
+        out2 = self.encoder2(spectra2)
+        rep1 = out1.mean(dim=1)
+        rep2 = out2.mean(dim=1)
         joint = torch.cat([rep1, rep2], dim=-1)
         outputs = self.classifier(joint)
         return outputs
@@ -198,15 +188,14 @@ def get_time_dif(start_time):
 def evaluate(data, model, loss, device):
 
     model.eval()
-    data_loader = Data.DataLoader(data,batch_size=8)
+    data_loader = Data.DataLoader(data,batch_size=1024,num_workers=8, shuffle=True, pin_memory=True)
 
     data_len = len(data)
     total_loss = 0.0
     y_true, y_pred = [], []
 
     for input1, input2, label, weight in data_loader:
-        input1, input2, label, weight = Variable(input1), Variable(input2),Variable(label), Variable(weight)
-        input1, input2, label, weight = input1.to(device),input2.to(device),label.to(device), weight.to(device)
+        input1, input2, label, weight = input1.to(device,non_blocking=True),input2.to(device,non_blocking=True),label.to(device,non_blocking=True), weight.to(device,non_blocking=True)
 
         output = model(input1,input2)
         losses = loss(output, label, weight)
@@ -254,7 +243,7 @@ def test_model(model, test_data, device,model_str):
     print("Testing...")
     model.eval()
     start_time = time.time()
-    test_loader = Data.DataLoader(test_data,batch_size=8)
+    test_loader = Data.DataLoader(test_data,batch_size=1024)
 
     model.load_state_dict(torch.load(model_str, map_location=lambda storage, loc: storage))
 
@@ -288,12 +277,12 @@ def test_model(model, test_data, device,model_str):
 
 
 def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test,model_name, pretrained_model):
-    LR = 1e-3
+    LR = 1e-4
     train_data = DefineDataset(X_train, yweight_train)
     val_data = DefineDataset(X_val, yweight_val)
     test_data = DefineDataset(X_test, yweight_test)
     device = torch.device("cuda")
-    model = DualPeakClassifier(dim_model=256,n_heads=4,dim_feedforward=512,n_layers=4,dim_intensity=64,num_classes=2,dropout=0.2,max_len=500)
+    model = DualPeakClassifier(dim_model=256,n_heads=4,dim_feedforward=512,n_layers=4,dim_intensity=None,num_classes=2,dropout=0.3,max_len=200)
     model.cuda()
     model = nn.DataParallel(model)
     model.to(device)
@@ -301,46 +290,33 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
         print("loading pretrained_model")
         model.load_state_dict(torch.load(pretrained_model, map_location=lambda storage, loc: storage))
     criterion = my_loss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(model.parameters(), lr=LR, weight_decay=1e-5)
     #model.load_state_dict(torch.load('cnn_pytorch.pt', map_location=lambda storage, loc: storage))
     #test_model(model, test_data, device)
     best_loss = 10000
-    for epoch in range(0, 50):
+    scaler = GradScaler("cuda")
+    train_loader = Data.DataLoader(train_data, batch_size=128, num_workers=8, shuffle=True, pin_memory=True)
+    for epoch in range(0, 80):
         start_time = time.time()
-        best_epoch_loss = 10000
-        # load the training data in batch
-        batch_count = 0
         model.train()
-        train_loader = Data.DataLoader(train_data, batch_size=32, num_workers=8, shuffle=True, pin_memory=True)
+        batch_idx=0
         for input1, input2, y_batch, weight in train_loader:
-            batch_count = batch_count + 1
-            input1, input2,targets, weight = Variable(input1),Variable(input2),Variable(y_batch), Variable(weight)
-            input1, input2,targets, weight = input1.to(device), input2.to(device),targets.to(device), weight.to(device)
+            input1, input2, targets, weight = input1.to(device,non_blocking=True), input2.to(device,non_blocking=True), y_batch.to(device,non_blocking=True), weight.to(device,non_blocking=True)
             optimizer.zero_grad()
-            outputs = model(input1,input2)  # forward computation
-            loss = criterion(outputs, targets, weight)
+            with autocast("cuda"):
+                outputs = model(input1,input2)  # forward computation
+                loss = criterion(outputs, targets, weight)
             # backward propagation and update parameters
-            loss.backward()
-            optimizer.step()
-
-            # evaluate on both training and test dataset
-
-            # train_acc, train_loss, train_Posprec, train_Negprec = evaluate(train_data, model, criterion, device)
-            val_acc, val_loss, val_PosPrec, val_Negprec = evaluate(val_data, model, criterion, device)
-            # print("val acc: "+str(val_acc)+" val loss: "+str(val_loss)+" val negprecision: "+str(val_Negprec)+" val posprec: "+str(val_PosPrec))
-            if val_loss < best_epoch_loss:
-                # store the best result
-                best_epoch_loss = val_loss
-                torch.save(model.state_dict(), 'checkpoints/epoch' + str(epoch) + '.pt')
-
-            if val_loss < best_loss:
-                best_loss = val_loss
-                torch.save(model.state_dict(), model_name)
-
-        model.load_state_dict(
-            torch.load('checkpoints/epoch' + str(epoch) + '.pt', map_location=lambda storage, loc: storage))
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+            torch.save(model.state_dict(), 'checkpoints/epoch' + str(epoch) + '.pt')
         train_acc, train_loss, train_Posprec, train_Negprec = evaluate(train_data, model, criterion, device)
         val_acc, val_loss, val_PosPrec, val_Negprec = evaluate(val_data, model, criterion, device)
+        if val_loss < best_loss:
+            best_loss = val_loss
+            torch.save(model.state_dict(), model_name)
+
         time_dif = get_time_dif(start_time)
         msg = "Epoch {0:3}, Train_loss: {1:>7.2}, Train_acc {2:>6.2%}, Train_Posprec {3:>6.2%}, Train_Negprec {" \
               "4:>6.2%}, " + "Val_loss: {5:>6.2}, Val_acc {6:>6.2%},Val_Posprec {7:6.2%}, Val_Negprec {8:6.2%} " \
@@ -348,9 +324,7 @@ def train_model(X_train, X_val, X_test, yweight_train, yweight_val, yweight_test
         print(msg.format(epoch + 1, train_loss, train_acc, train_Posprec, train_Negprec, val_loss, val_acc,
                          val_PosPrec, val_Negprec, time_dif))
 
-    model.load_state_dict(
-        torch.load(model_name, map_location=lambda storage, loc: storage))
-    for i in range(0,50):
+    for i in range(0,80):
         test_model(model, test_data, device,'checkpoints/epoch'+str(i)+'.pt')
 
 
@@ -384,12 +358,15 @@ if __name__ == "__main__":
             model_name=arg
         elif opt in ("-p"):
             pretrained_model=arg
-    psms = glob.glob(input_directory+'/*tsv')
-    features = glob.glob(input_directory+'/*pkl')
+    psms = sorted(glob.glob(input_directory+'/*tsv'))
+    features = sorted(glob.glob(input_directory+'/*pkl'))
     start = time.time()
-    L, Yweight = readData(psms,features)
-    X_train, X_test, yweight_train, yweight_test= train_test_split(L, Yweight, test_size=0.1,random_state=10)
-    X_train, X_val, yweight_train, yweight_val = train_test_split(X_train, yweight_train, test_size=0.1,random_state=10)
+    #L, Yweight = readData(psms,features)
+    X_train, yweight_train = readData(psms[:9],features[:9])
+    X_test, yweight_test = readData([psms[9]],[features[9]])
+    X_val, yweight_val = readData([psms[10]],[features[10]])
+    #X_train, X_test, yweight_train, yweight_test= train_test_split(L, Yweight, test_size=0.1,random_state=10)
+    #X_train, X_val, yweight_train, yweight_val = train_test_split(X_train, yweight_train, test_size=0.1,random_state=10)
     end = time.time()
     print('loading data: ' + str(end - start))
     print("length of training data: " + str(len(X_train)))
